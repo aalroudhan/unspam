@@ -2,7 +2,8 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CallLog, CallOutcome, InterceptionMode } from '../calls/entities/call-log.entity';
+import { CallLog } from '../calls/entities/call-log.entity';
+import { CommunityFlag } from '../calls/entities/community-flag.entity';
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -11,7 +12,7 @@ const dataSource = new DataSource({
   database: process.env.DB_NAME ?? 'unspam',
   username: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
-  entities: [CallLog],
+  entities: [CallLog, CommunityFlag],
   synchronize: true,
 });
 
@@ -26,7 +27,7 @@ function parseCsv(content: string): Record<string, string>[] {
 
 async function seed() {
   await dataSource.initialize();
-  const repo = dataSource.getRepository(CallLog);
+  const repo = dataSource.getRepository(CommunityFlag);
 
   const csv = readFileSync(join(__dirname, 'data', 'spam-numbers.csv'), 'utf8');
   const rows = parseCsv(csv);
@@ -40,12 +41,6 @@ async function seed() {
 
     await repo.save(repo.create({
       callerNumber: row.number,
-      spamScore: 0.85,
-      outcome: CallOutcome.BLOCKED,
-      mode: InterceptionMode.NATIVE,
-      carrierType: row.carrierType,
-      isVoip: row.isVoip === 'true',
-      isSpoofed: row.isSpoofed === 'true',
       flagCount: parseInt(row.flagCount, 10),
     }));
     inserted++;
