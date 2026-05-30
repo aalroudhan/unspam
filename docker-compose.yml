@@ -37,9 +37,13 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       SCORER_URL: http://scorer:8000
-      INTERCEPTION_MODE: native
-      JWT_SECRET: changeme
+      INTERCEPTION_MODE: ${INTERCEPTION_MODE:-native}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
       IPQS_API_KEY: ${IPQS_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      FORWARD_TO_NUMBER: ${FORWARD_TO_NUMBER:-}
     depends_on:
       postgres:
         condition: service_healthy
