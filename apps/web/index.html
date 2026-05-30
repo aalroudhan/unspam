@@ -284,8 +284,10 @@
         await fetch(`${API}/calls/${encodeURIComponent(phone)}/flag`, { method: 'POST' });
         const confirm = document.getElementById('flag-confirm');
         confirm.style.display = 'block';
-        setTimeout(() => { confirm.style.display = 'none'; btn.disabled = false; }, 3000);
+        setTimeout(() => { confirm.style.display = 'none'; }, 2000);
+        await checkNumber();
       } catch {
+      } finally {
         btn.disabled = false;
       }
     }
