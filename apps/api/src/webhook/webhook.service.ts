@@ -22,7 +22,14 @@ export class WebhookService {
     @Inject(CALL_INTERCEPTOR) private readonly interceptor: ICallInterceptor,
   ) {}
 
-  async handleIncomingCall(callerNumber: string): Promise<{ outcome: string; twiml?: string }> {
+  async handleIncomingCall(callerNumber: string): Promise<{
+    outcome: string;
+    score: number;
+    reasons: string[];
+    carrier: { isVoip: boolean; isSpoofed: boolean; carrierType: string };
+    communityFlags: number;
+    twiml?: string;
+  }> {
     const carrier = await this.carrierLookup.lookup(callerNumber);
     const communityFlags = await this.calls.getCommunityFlagCount(callerNumber);
 
@@ -51,9 +58,8 @@ export class WebhookService {
       flagCount: communityFlags,
     });
 
-    // Observer: emit event — notification handler picks it up independently
     this.events.emit(CALL_INTERCEPTED_EVENT, callLog);
 
-    return { outcome, twiml };
+    return { outcome, score, reasons, carrier, communityFlags, twiml };
   }
 }

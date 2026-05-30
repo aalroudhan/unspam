@@ -6,56 +6,159 @@
   <title>Unspam — Check a Number</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 420px; }
-    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-    p.sub { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
-    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f0f0f0; display: flex; justify-content: center; padding: 2rem 1rem 4rem; }
+    .layout { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 2rem; }
+
+    h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
+    .sub { color: #888; font-size: 0.875rem; margin-bottom: 1.5rem; }
+
+    label { display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 0.4rem; }
     input { width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #333; background: #0f0f0f; color: #f0f0f0; font-size: 1rem; outline: none; }
     input:focus { border-color: #555; }
-    button { margin-top: 1rem; width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: #e63946; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button { margin-top: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: #e63946; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     button:hover { background: #c1121f; }
-    button:disabled { background: #444; cursor: not-allowed; }
-    .result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-size: 0.9rem; display: none; }
-    .result.spam { background: #2a0a0a; border: 1px solid #7f1d1d; }
-    .result.clean { background: #0a1f0a; border: 1px solid #14532d; }
-    .score { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .reasons { list-style: none; margin-top: 0.75rem; }
-    .reasons li::before { content: '→ '; color: #888; }
-    .reasons li { color: #ccc; font-size: 0.85rem; padding: 0.2rem 0; }
-    .log-section { margin-top: 2.5rem; border-top: 1px solid #2a2a2a; padding-top: 1.5rem; }
-    .log-section h2 { font-size: 1rem; margin-bottom: 1rem; color: #aaa; }
-    .log-entry { padding: 0.6rem 0; border-bottom: 1px solid #1f1f1f; display: flex; justify-content: space-between; font-size: 0.85rem; }
-    .log-entry .number { color: #f0f0f0; font-family: monospace; }
-    .log-entry .outcome { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .outcome.blocked, .outcome.voicemail { background: #7f1d1d; color: #fca5a5; }
-    .outcome.allowed { background: #14532d; color: #86efac; }
-    .empty { color: #555; font-size: 0.85rem; }
+    button:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    /* Decision card */
+    .decision { display: none; }
+    .verdict-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .verdict-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 0.25rem; }
+    .verdict-value { font-size: 1.4rem; font-weight: 700; }
+    .verdict-value.blocked, .verdict-value.voicemail { color: #f87171; }
+    .verdict-value.allowed { color: #4ade80; }
+    .badge { padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .badge.blocked, .badge.voicemail { background: #7f1d1d; color: #fca5a5; }
+    .badge.allowed { background: #14532d; color: #86efac; }
+
+    /* Score bar */
+    .score-section { margin-bottom: 1.5rem; }
+    .score-header { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: 0.8rem; color: #aaa; }
+    .score-pct { font-weight: 700; color: #f0f0f0; }
+    .bar-track { height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .bar-fill.low { background: #4ade80; }
+    .bar-fill.mid { background: #facc15; }
+    .bar-fill.high { background: #f87171; }
+    .threshold-note { font-size: 0.72rem; color: #555; margin-top: 0.35rem; }
+
+    /* Decision chain */
+    .chain-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 0.75rem; }
+    .chain { display: flex; flex-direction: column; }
+    .chain-step { display: flex; align-items: stretch; gap: 0.75rem; }
+    .chain-left { display: flex; flex-direction: column; align-items: center; width: 28px; flex-shrink: 0; }
+    .chain-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .chain-dot.hit { background: #f87171; }
+    .chain-dot.pass { background: #333; border: 1px solid #444; }
+    .chain-line { width: 1px; flex: 1; background: #2a2a2a; margin: 2px 0; }
+    .chain-body { padding-bottom: 1rem; flex: 1; }
+    .chain-step:last-child .chain-line { display: none; }
+    .chain-step:last-child .chain-body { padding-bottom: 0; }
+    .step-name { font-size: 0.875rem; font-weight: 600; color: #f0f0f0; }
+    .step-name.pass { color: #555; }
+    .step-desc { font-size: 0.8rem; color: #888; margin-top: 0.15rem; }
+    .step-contrib { font-size: 0.75rem; color: #f87171; margin-top: 0.15rem; font-weight: 600; }
+
+    /* Carrier meta */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+    .meta-item { background: #111; border: 1px solid #222; border-radius: 8px; padding: 0.6rem 0.75rem; }
+    .meta-key { font-size: 0.7rem; color: #555; margin-bottom: 0.15rem; }
+    .meta-val { font-size: 0.875rem; font-weight: 600; }
+    .meta-val.flagged { color: #f87171; }
+    .meta-val.ok { color: #4ade80; }
+
+    /* Log */
+    .log-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 0.75rem; }
+    .log-entry { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid #1f1f1f; font-size: 0.85rem; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-number { font-family: monospace; color: #ccc; }
+    .log-right { display: flex; align-items: center; gap: 0.5rem; }
+    .log-score { font-size: 0.75rem; color: #555; }
+    .badge-sm { padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+    .badge-sm.blocked, .badge-sm.voicemail { background: #7f1d1d; color: #fca5a5; }
+    .badge-sm.allowed { background: #14532d; color: #86efac; }
+    .empty { color: #444; font-size: 0.85rem; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Unspam</h1>
-    <p class="sub">Check if a phone number is spam before you pick up.</p>
+  <div class="layout">
 
-    <label for="phone">Phone number</label>
-    <input id="phone" type="tel" placeholder="+1 555 000 0000" />
-    <button id="check-btn" onclick="checkNumber()">Check number</button>
-
-    <div class="result" id="result">
-      <div class="score" id="score-display"></div>
-      <div id="verdict"></div>
-      <ul class="reasons" id="reasons"></ul>
+    <!-- Input -->
+    <div class="card">
+      <h1>Unspam</h1>
+      <p class="sub">Check if a number is spam before you pick up.</p>
+      <label for="phone">Phone number</label>
+      <input id="phone" type="tel" placeholder="+1 555 000 0000" />
+      <button id="check-btn" onclick="checkNumber()">Check number</button>
     </div>
 
-    <div class="log-section">
-      <h2>Recent interceptions</h2>
+    <!-- Decision breakdown -->
+    <div class="card decision" id="decision-card">
+      <div class="verdict-row">
+        <div>
+          <div class="verdict-label">Verdict</div>
+          <div class="verdict-value" id="verdict-value">—</div>
+        </div>
+        <span class="badge" id="verdict-badge"></span>
+      </div>
+
+      <div class="score-section">
+        <div class="score-header">
+          <span>Spam score</span>
+          <span class="score-pct" id="score-pct">0%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="bar-fill" style="width:0%"></div>
+        </div>
+        <div class="threshold-note">Threshold: 60% — above this the call is intercepted</div>
+      </div>
+
+      <div class="chain-title">How the decision was made</div>
+      <div class="chain" id="chain"></div>
+
+      <div class="meta-grid" id="meta-grid"></div>
+    </div>
+
+    <!-- Call log -->
+    <div class="card">
+      <div class="log-title">Recent interceptions</div>
       <div id="log-list"><p class="empty">No calls logged yet.</p></div>
     </div>
+
   </div>
 
   <script>
     const API = 'http://localhost:3000';
+
+    const HANDLERS = [
+      {
+        key: 'voip_number',
+        name: 'VoIP Detection',
+        desc: 'Checks if the number is registered to a VoIP carrier.',
+        contrib: '+40%',
+      },
+      {
+        key: 'spoofed_number',
+        name: 'Spoofing Detection',
+        desc: 'Checks STIR/SHAKEN data for number reassignment (Twilio mode only).',
+        contrib: '+50%',
+      },
+      {
+        key: 'community_flagged',
+        name: 'Community Blocklist',
+        desc: 'Checks how many users have flagged this number.',
+        contrib: '+30%',
+        matchPrefix: true,
+      },
+      {
+        key: 'high_risk_carrier',
+        name: 'Carrier Risk',
+        desc: 'Flags non-fixed VoIP and prepaid carrier types as higher risk.',
+        contrib: '+20%',
+        matchPrefix: true,
+      },
+    ];
 
     async function checkNumber() {
       const phone = document.getElementById('phone').value.trim();
@@ -72,28 +175,73 @@
           body: JSON.stringify({ callerNumber: phone }),
         });
         const data = await res.json();
-
-        const resultEl = document.getElementById('result');
-        const isSpam = data.outcome !== 'allowed';
-        resultEl.className = `result ${isSpam ? 'spam' : 'clean'}`;
-        resultEl.style.display = 'block';
-
-        document.getElementById('score-display').textContent =
-          `${Math.round((data.score ?? 0) * 100)}% spam likelihood`;
-        document.getElementById('verdict').textContent =
-          isSpam ? `Intercepted — ${data.outcome}` : 'Looks clean';
-
-        const reasonsList = document.getElementById('reasons');
-        reasonsList.innerHTML = (data.reasons ?? [])
-          .map(r => `<li>${r.replace(/_/g, ' ')}</li>`).join('');
-
+        renderDecision(data);
         loadLog();
-      } catch (e) {
+      } catch {
         alert('Could not reach the API. Is it running?');
       } finally {
         btn.disabled = false;
         btn.textContent = 'Check number';
       }
+    }
+
+    function renderDecision(data) {
+      const { outcome, score = 0, reasons = [], carrier = {}, communityFlags = 0 } = data;
+      const pct = Math.round(score * 100);
+
+      // Verdict
+      document.getElementById('verdict-value').textContent =
+        outcome.charAt(0).toUpperCase() + outcome.slice(1);
+      document.getElementById('verdict-value').className = `verdict-value ${outcome}`;
+      const badge = document.getElementById('verdict-badge');
+      badge.textContent = outcome;
+      badge.className = `badge ${outcome}`;
+
+      // Score bar
+      document.getElementById('score-pct').textContent = `${pct}%`;
+      const fill = document.getElementById('bar-fill');
+      fill.style.width = `${pct}%`;
+      fill.className = `bar-fill ${pct < 40 ? 'low' : pct < 60 ? 'mid' : 'high'}`;
+
+      // Decision chain
+      document.getElementById('chain').innerHTML = HANDLERS.map(h => {
+        const hit = reasons.some(r => h.matchPrefix ? r.startsWith(h.key) : r === h.key);
+        const reason = reasons.find(r => h.matchPrefix ? r.startsWith(h.key) : r === h.key);
+        const label = reason ? reason.replace(/_/g, ' ') : h.desc;
+        return `
+          <div class="chain-step">
+            <div class="chain-left">
+              <div class="chain-dot ${hit ? 'hit' : 'pass'}"></div>
+              <div class="chain-line"></div>
+            </div>
+            <div class="chain-body">
+              <div class="step-name ${hit ? '' : 'pass'}">${h.name}</div>
+              <div class="step-desc">${hit ? label : h.desc}</div>
+              ${hit ? `<div class="step-contrib">${h.contrib} to score</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      // Carrier meta
+      document.getElementById('meta-grid').innerHTML = `
+        <div class="meta-item">
+          <div class="meta-key">Carrier type</div>
+          <div class="meta-val">${carrier.carrierType ?? 'unknown'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-key">VoIP</div>
+          <div class="meta-val ${carrier.isVoip ? 'flagged' : 'ok'}">${carrier.isVoip ? 'Yes' : 'No'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-key">Spoofed</div>
+          <div class="meta-val ${carrier.isSpoofed ? 'flagged' : 'ok'}">${carrier.isSpoofed ? 'Yes' : 'No'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-key">Community flags</div>
+          <div class="meta-val ${communityFlags >= 5 ? 'flagged' : 'ok'}">${communityFlags}</div>
+        </div>`;
+
+      document.getElementById('decision-card').style.display = 'block';
     }
 
     async function loadLog() {
@@ -104,8 +252,11 @@
         if (!data?.length) { el.innerHTML = '<p class="empty">No calls logged yet.</p>'; return; }
         el.innerHTML = data.map(c => `
           <div class="log-entry">
-            <span class="number">${c.callerNumber}</span>
-            <span class="outcome ${c.outcome}">${c.outcome}</span>
+            <span class="log-number">${c.callerNumber}</span>
+            <div class="log-right">
+              <span class="log-score">${Math.round(c.spamScore * 100)}%</span>
+              <span class="badge-sm ${c.outcome}">${c.outcome}</span>
+            </div>
           </div>`).join('');
       } catch {}
     }
