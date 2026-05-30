@@ -203,6 +203,11 @@
       const { outcome, score = 0, reasons = [], carrier = {}, communityFlags = 0 } = data;
       const pct = Math.round(score * 100);
 
+      // Re-enable flag button for this new check result
+      const flagBtn = document.getElementById('flag-btn');
+      flagBtn.disabled = false;
+      document.getElementById('flag-confirm').style.display = 'none';
+
       // Verdict
       document.getElementById('verdict-value').textContent =
         outcome.charAt(0).toUpperCase() + outcome.slice(1);
@@ -286,10 +291,8 @@
         confirm.style.display = 'block';
         setTimeout(() => { confirm.style.display = 'none'; }, 2000);
         await checkNumber();
-      } catch {
-      } finally {
-        btn.disabled = false;
-      }
+      } catch {}
+      // stays disabled until the user runs a new check
     }
 
     document.getElementById('phone').addEventListener('keydown', e => {
