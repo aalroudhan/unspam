@@ -1,162 +1,321 @@
 # Unspam
 
-A mobile app that detects and intercepts spam calls, protecting users from VoIP-based robocalls and spam.
+A spam call detection system that scores incoming phone numbers using carrier data, spoofing signals, and community flags. Exposes a web UI and REST API. Runs entirely in Docker.
 
 ## How It Works
 
-Unspam supports two interception modes. Both ultimately log the call and notify the user.
+Unspam supports two interception modes.
 
-### Mode A — Twilio (Full Network Interception)
+### Mode A — Twilio
 
-Best for spoofed number detection and iOS users who want real-time interception.
+Best for spoofed number detection. Requires a Twilio account.
 
-1. User's phone forwards calls to their assigned Twilio number
-2. Twilio receives the call and triggers a webhook to the Unspam backend
-3. The backend queries the Twilio Lookup API to check carrier type, VoIP status, and STIR/SHAKEN spoofing data
-4. If spam is detected → Twilio sends the call to voicemail and logs it
-5. If clean → Twilio forwards the call to the user's real number
-6. User receives a push notification and can view the call log in the app
+1. User forwards their carrier calls to their Twilio number
+2. Twilio hits the `/webhook/call` endpoint on an incoming call
+3. Backend runs a Twilio Lookup to get carrier type, VoIP status, and STIR/SHAKEN reassignment data
+4. Scoring engine produces a 0–1 spam score
+5. If score ≥ 0.6 → call is sent to voicemail and logged
+6. If score < 0.6 → call is forwarded to the user's real number
 
-### Mode B — Native (No Twilio Required)
+### Mode B — Native
 
-Lower cost. Works well for VoIP and known spam detection without spoofing checks.
+No Twilio required. Lower cost. No spoofed number detection.
 
-1. Incoming call arrives on the device
-2. Android Call Screening API or iOS CallKit intercepts it before it rings
-3. The app queries the backend with the caller number
-4. Backend checks the number against a free carrier lookup API (e.g. numverify) and community block list
-5. If spam is detected → call is silenced/rejected and logged
-6. User receives a push notification and can view the call log in the app
+1. App or device queries `/webhook/check` before a call rings
+2. Backend calls IPQualityScore to determine carrier type and VoIP status
+3. Scoring engine produces a spam score
+4. Result is returned — device blocks or allows the call
 
-## Features
+## Scoring
 
-- VoIP number detection (Twilio Lookup or numverify)
-- Spoofed number detection via STIR/SHAKEN (Twilio mode only)
-- Automatic call interception and voicemail/rejection routing
-- Community-sourced block list — numbers flagged by multiple users raise score for everyone
-- In-app log of all intercepted calls
-- Push notifications on interception
-- iOS CallKit integration (system-level call blocking)
-- Android Call Screening API integration
+Each incoming number passes through a chain of handlers. Each handler that fires adds to the total spam score. A score ≥ 60% triggers interception.
+
+| Handler | Fires when | Score added |
+|---|---|---|
+| Non-Fixed VoIP | Number has no registered physical address (TextNow, Google Voice) | +40% |
+| Fixed VoIP | Number is VoIP but has a registered address (Vonage, magicJack) | +20% |
+| Spoofing | Number was reassigned to a new subscriber within 90 days (Twilio mode only) | +50% |
+| Community Blocklist | Number has been flagged by 5+ users | +30% |
+| High-Risk Carrier | Number is on a prepaid or non-fixed VoIP carrier | +20% |
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Mobile | React Native (iOS + Android) |
-| Backend | Node.js + Express |
+| API | NestJS + TypeScript |
+| Scorer | Python + FastAPI |
 | Database | PostgreSQL |
-| Spam Scoring | Weighted scoring engine (local, no API cost) |
-| Telephony — Mode A | Twilio Voice + Lookup API |
-| Telephony — Mode B | numverify (free tier) + native device APIs |
-| Push Notifications | Firebase Cloud Messaging (FCM) |
-| iOS Call Blocking | CallKit (`CXCallDirectoryExtension`) |
-| Android Call Screening | Call Screening API |
+| Web UI | HTML/CSS/JS served by nginx |
+| Carrier Lookup — Mode A | Twilio Lookup v2 |
+| Carrier Lookup — Mode B | IPQualityScore (free tier: 200 req/month) |
+| Infrastructure | Docker + Docker Compose |
 
 ## Project Structure
 
 ```
 unspam/
-├── app/                  # React Native mobile app
-│   ├── src/
-│   │   ├── screens/      # Call log, settings, auth screens
-│   │   ├── components/   # Shared UI components
-│   │   ├── services/     # API calls, FCM, CallKit bridge
-│   │   └── navigation/   # App navigation
-│   └── ios/              # iOS-specific (CallKit extension)
-├── backend/              # Node.js API
-│   ├── src/
-│   │   ├── routes/       # Webhook and REST endpoints
-│   │   ├── services/     # Twilio Lookup, call routing logic
-│   │   └── models/       # Database models
-│   └── migrations/       # PostgreSQL migrations
-└── docs/                 # Additional documentation
+├── apps/
+│   ├── api/                          # NestJS backend
+│   │   └── src/
+│   │       ├── calls/                # Call log + community flags
+│   │       ├── carrier/              # Adapter pattern: Twilio / IPQS
+│   │       ├── interception/         # Strategy pattern: Twilio / Native
+│   │       ├── scorer/               # HTTP client to scorer service
+│   │       ├── webhook/              # Facade: orchestrates all subsystems
+│   │       ├── notifications/        # Observer: push notification handler
+│   │       ├── database/             # Seed data (50 known spam numbers)
+│   │       └── common/               # Global filter, interceptor, pipes
+│   ├── scorer/                       # Python FastAPI scoring service
+│   │   └── handlers/                 # Chain of Responsibility: VoIP → Blocklist → Carrier
+│   └── web/                          # Static web frontend
+├── docker-compose.yml
+└── .env.example
 ```
 
-## Getting Started
+## Design Patterns
+
+| Pattern | Where |
+|---|---|
+| Repository | `CallsRepository`, `CommunityFlagsRepository` — separates DB access from business logic |
+| Adapter | `TwilioAdapter`, `IpQualityScoreAdapter` behind `ICarrierLookup` |
+| Strategy | `TwilioInterceptor`, `NativeInterceptor` behind `ICallInterceptor` |
+| Factory Method | `useFactory` selects the right adapter/strategy at runtime based on `INTERCEPTION_MODE` |
+| Facade | `WebhookService` — single entry point over carrier lookup, scoring, interception, logging |
+| Observer | `EventEmitter2` decouples call interception from push notifications |
+| Chain of Responsibility | Python scorer: each rule is a handler that passes context down the chain |
+
+---
+
+## Local Development
 
 ### Prerequisites
 
-- Node.js 18+
-- React Native CLI
-- PostgreSQL
-- Firebase project (for push notifications)
-- **Mode A only:** Twilio account with a voice-enabled number
-- **Mode B only:** numverify API key (free tier available)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) or Docker Engine + Compose (Linux)
+- Git
 
-### Backend Setup
+### Run locally
 
 ```bash
-cd backend
-npm install
-cp .env.example .env   # fill in your credentials
-npm run migrate
-npm run dev
+git clone https://github.com/aalroudhan/unspam.git
+cd unspam
+cp .env.example .env   # fill in credentials (see Environment Variables below)
+docker compose up --build
 ```
 
-### Mobile App Setup
+| Service | URL |
+|---|---|
+| Web UI | http://localhost:8080 |
+| API | http://localhost:3000 |
+| API docs (Swagger) | http://localhost:3000/docs |
+| Scorer | http://localhost:8000/docs |
+
+---
+
+## Deployment
+
+### Server requirements
+
+Any Linux server with at least:
+
+- 1 vCPU, 1 GB RAM (2 GB recommended)
+- Ubuntu 22.04 LTS (or any Debian-based distro)
+- Ports 80, 443, and 3000 open in the firewall
+
+Popular options: DigitalOcean Droplet ($6/mo), AWS EC2 t3.micro, Hetzner CX11.
+
+---
+
+### Step 1 — Install Git
 
 ```bash
-cd app
-npm install
-npx pod-install        # iOS only
-npm run ios            # or npm run android
+sudo apt update
+sudo apt install -y git
+git --version
 ```
 
-### Environment Variables
+---
+
+### Step 2 — Install Docker
+
+```bash
+# Add Docker's official GPG key and repository
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Allow running Docker without sudo
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+---
+
+### Step 3 — Clone the repo
+
+```bash
+git clone https://github.com/aalroudhan/unspam.git
+cd unspam
+```
+
+---
+
+### Step 4 — Configure environment
+
+```bash
+cp .env.example .env
+nano .env   # or use vim / any editor
+```
+
+Fill in the values (see [Environment Variables](#environment-variables) below).
+
+---
+
+### Step 5 — Build and start
+
+```bash
+docker compose up --build -d
+```
+
+The `-d` flag runs everything in the background. All four containers will start: `postgres`, `scorer`, `api`, `web`.
+
+Check they are running:
+
+```bash
+docker compose ps
+```
+
+Check the API logs:
+
+```bash
+docker compose logs api
+```
+
+---
+
+### Step 6 — (Optional) Set up a domain with HTTPS
+
+Install nginx and certbot:
+
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+Create an nginx config at `/etc/nginx/sites-available/unspam`:
+
+```nginx
+server {
+    server_name yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:8080;
+    }
+
+    location /api/ {
+        rewrite ^/api(/.*)$ $1 break;
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+Enable it and get a certificate:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/unspam /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d yourdomain.com
+```
+
+---
+
+### Step 7 — (Mode A only) Point Twilio webhook to your server
+
+In the Twilio console, set your phone number's incoming call webhook to:
+
+```
+POST https://yourdomain.com/api/webhook/call
+```
+
+Or using your server's IP directly (no domain required):
+
+```
+POST http://YOUR_SERVER_IP:3000/webhook/call
+```
+
+---
+
+### Updating a deployment
+
+```bash
+git pull
+docker compose up --build -d
+```
+
+Only the changed containers are rebuilt. The database volume is preserved.
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root. Never commit this file.
 
 ```env
-# Database
-DATABASE_URL=
-
-# Firebase
-FIREBASE_SERVICE_ACCOUNT_KEY=
-
 # App
-JWT_SECRET=
+JWT_SECRET=change_this_to_a_random_string
 INTERCEPTION_MODE=native   # "twilio" or "native"
 
-# Mode A — Twilio (leave blank if using native mode)
+# Database (leave as-is for Docker)
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=unspam
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# Scorer (leave as-is for Docker)
+SCORER_URL=http://scorer:8000
+
+# Mode A — Twilio
+# Sign up at twilio.com — Account SID and Auth Token are on the dashboard
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-FORWARD_TO_NUMBER=
+TWILIO_PHONE_NUMBER=       # the Twilio number that receives forwarded calls
+FORWARD_TO_NUMBER=         # your real phone number
 
-# Mode B — Native (leave blank if using Twilio mode)
-NUMVERIFY_API_KEY=
+# Mode B — IPQualityScore
+# Free tier (200 req/month): https://www.ipqualityscore.com/create-account
+IPQS_API_KEY=
 ```
 
-### Mode A: Twilio Webhook Setup
-
-Point your Twilio number's incoming call webhook to:
-
-```
-POST https://your-backend-url/webhook/call
-```
-
-Users must also enable call forwarding on their carrier to route calls through their Twilio number. Instructions vary by carrier.
-
-### Mode B: Native Setup
-
-No webhook or call forwarding needed. The app uses the device's native call screening APIs directly. Set `INTERCEPTION_MODE=native` in your `.env`.
+---
 
 ## Roadmap
 
-- [x] VoIP detection (Twilio Lookup)
+- [x] VoIP detection (fixed and non-fixed)
+- [x] Spoofed number detection (number reassignment, Twilio mode)
+- [x] Community-sourced blocklist with seed data
+- [x] Chain of Responsibility scoring engine
+- [x] Web UI with decision breakdown
 - [ ] Call frequency detection
 - [ ] Geographic pattern analysis
-- [ ] Carrier-based scoring
 - [ ] Voicemail playback in-app
-- [ ] Analytics and stats dashboard
-- [ ] Custom block/allow lists
-
-## Known Limitations
-
-- **Mode A — iOS call forwarding is manual** — users configure it in carrier settings; there is no programmatic way to enable it
-- **Mode A — CallKit blocks by list** — there is a short sync delay between detection and blocking for newly identified numbers
-- **Mode A — Twilio Lookup costs** ~$0.01 per lookup
-- **Mode B — No spoofed number detection** — STIR/SHAKEN data requires a carrier-level API (Twilio or equivalent); numverify does not provide it
-- **Mode B — Android only for real-time interception** — iOS CallKit on native mode blocks by pre-synced list, not in real-time
+- [ ] Custom block/allow lists per user
+- [ ] Mobile app (React Native, iOS + Android)
 
 ## License
 
