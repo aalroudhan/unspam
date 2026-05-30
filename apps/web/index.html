@@ -79,6 +79,9 @@
     .badge-sm.blocked, .badge-sm.voicemail { background: #7f1d1d; color: #fca5a5; }
     .badge-sm.allowed { background: #14532d; color: #86efac; }
     .empty { color: #444; font-size: 0.85rem; }
+    #flag-btn:hover:not(:disabled) { background: #7f1d1d !important; color: #fca5a5; }
+    #flag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .flag-confirm { font-size: 0.8rem; color: #4ade80; margin-top: 0.5rem; display: none; }
   </style>
 </head>
 <body>
@@ -118,6 +121,11 @@
       <div class="chain" id="chain"></div>
 
       <div class="meta-grid" id="meta-grid"></div>
+
+      <button id="flag-btn" onclick="flagNumber()" style="margin-top:1rem;background:#333;font-size:0.875rem;">
+        🚩 Flag this number as spam
+      </button>
+      <div class="flag-confirm" id="flag-confirm">Flagged — community score updated.</div>
     </div>
 
     <!-- Call log -->
@@ -265,6 +273,21 @@
             </div>
           </div>`).join('');
       } catch {}
+    }
+
+    async function flagNumber() {
+      const phone = document.getElementById('phone').value.trim();
+      if (!phone) return;
+      const btn = document.getElementById('flag-btn');
+      btn.disabled = true;
+      try {
+        await fetch(`${API}/calls/${encodeURIComponent(phone)}/flag`, { method: 'POST' });
+        const confirm = document.getElementById('flag-confirm');
+        confirm.style.display = 'block';
+        setTimeout(() => { confirm.style.display = 'none'; btn.disabled = false; }, 3000);
+      } catch {
+        btn.disabled = false;
+      }
     }
 
     document.getElementById('phone').addEventListener('keydown', e => {
