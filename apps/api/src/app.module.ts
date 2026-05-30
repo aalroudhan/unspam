@@ -7,6 +7,7 @@ import { CallsModule } from './calls/calls.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CallLog } from './calls/entities/call-log.entity';
+import { CommunityFlag } from './calls/entities/community-flag.entity';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { CallLog } from './calls/entities/call-log.entity';
         database: config.get('database.name'),
         username: config.get('database.user'),
         password: config.get('database.password'),
-        entities: [CallLog],
+        entities: [CallLog, CommunityFlag],
         synchronize: process.env.NODE_ENV !== 'production',
       }),
     }),

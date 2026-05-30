@@ -16,22 +16,13 @@ export class CommunityFlagsRepository {
   }
 
   async increment(callerNumber: string): Promise<void> {
-    await this.orm
-      .createQueryBuilder()
-      .insert()
-      .into(CommunityFlag)
-      .values({ callerNumber, flagCount: 1 })
-      .orUpdate(['flag_count'], ['caller_number'], {
-        skipUpdateIfNoValuesChanged: false,
-      })
-      .execute();
-
-    await this.orm
-      .createQueryBuilder()
-      .update(CommunityFlag)
-      .set({ flagCount: () => 'flag_count + 1' })
-      .where('caller_number = :callerNumber', { callerNumber })
-      .execute();
+    await this.orm.query(
+      `INSERT INTO community_flags ("callerNumber", "flagCount", "updatedAt")
+       VALUES ($1, 1, NOW())
+       ON CONFLICT ("callerNumber")
+       DO UPDATE SET "flagCount" = community_flags."flagCount" + 1, "updatedAt" = NOW()`,
+      [callerNumber],
+    );
   }
 
   async seed(callerNumber: string, flagCount: number): Promise<void> {

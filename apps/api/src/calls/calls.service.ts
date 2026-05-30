@@ -16,11 +16,4 @@ export class CallsService {
     return this.repo.save(callLog);
   }
 
-  async flagNumber(callerNumber: string): Promise<void> {
-    return this.repo.incrementFlagCount(callerNumber);
-  }
-
-  async getCommunityFlagCount(callerNumber: string): Promise<number> {
-    return this.repo.getFlagCount(callerNumber);
-  }
 }

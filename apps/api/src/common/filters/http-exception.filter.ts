@@ -18,7 +18,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       ? exception.message
       : 'Internal server error';
 
-    this.logger.error(`${req.method} ${req.url} → ${status}: ${message}`);
+    const detail = exception instanceof Error ? exception.stack ?? exception.message : String(exception);
+    this.logger.error(`${req.method} ${req.url} → ${status}: ${message}\n${detail}`);
 
     res.status(status).json({ statusCode: status, message, path: req.url, timestamp: new Date().toISOString() });
   }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CallLog, CallOutcome } from './entities/call-log.entity';
+import { CallLog } from './entities/call-log.entity';
 import { QueryCallsDto } from './dto/query-calls.dto';
 
 @Injectable()
@@ -28,22 +28,5 @@ export class CallsRepository {
     return qb.getManyAndCount();
   }
 
-  incrementFlagCount(callerNumber: string): Promise<void> {
-    return this.orm
-      .createQueryBuilder()
-      .update(CallLog)
-      .set({ flagCount: () => 'flag_count + 1' })
-      .where('caller_number = :callerNumber', { callerNumber })
-      .execute()
-      .then(() => undefined);
-  }
 
-  getFlagCount(callerNumber: string): Promise<number> {
-    return this.orm
-      .createQueryBuilder('call')
-      .select('SUM(call.flagCount)', 'total')
-      .where('call.callerNumber = :callerNumber', { callerNumber })
-      .getRawOne()
-      .then((r) => parseInt(r?.total ?? '0', 10));
-  }
 }
