@@ -225,8 +225,8 @@
       // Carrier meta
       document.getElementById('meta-grid').innerHTML = `
         <div class="meta-item">
-          <div class="meta-key">Carrier type</div>
-          <div class="meta-val">${carrier.carrierType ?? 'unknown'}</div>
+          <div class="meta-key">Carrier</div>
+          <div class="meta-val">${carrier.carrierName && carrier.carrierName !== 'Unknown' ? carrier.carrierName : (carrier.carrierType ?? 'unknown')}</div>
         </div>
         <div class="meta-item">
           <div class="meta-key">VoIP</div>

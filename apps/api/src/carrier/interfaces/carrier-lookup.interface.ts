@@ -2,6 +2,7 @@ export interface CarrierInfo {
   isVoip: boolean;
   isSpoofed: boolean;
   carrierType: string;
+  carrierName: string;
 }
 
 export interface ICarrierLookup {

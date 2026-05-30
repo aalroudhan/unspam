@@ -29,6 +29,7 @@ export class TwilioAdapter implements ICarrierLookup {
       isVoip: lineType === 'voip' || lineType === 'nonFixedVoip',
       isSpoofed: data.reassigned_number?.last_reassigned_date != null,
       carrierType: lineType,
+      carrierName: data.line_type_intelligence?.carrier_name ?? 'Unknown',
     };
   }
 }

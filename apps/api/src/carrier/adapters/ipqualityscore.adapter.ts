@@ -23,14 +23,15 @@ export class IpQualityScoreAdapter implements ICarrierLookup {
       }),
     );
 
-    // IPQS line_type values: "Landline", "Wireless", "Toll Free", "VOIP",
-    // "Satellite", "Premium Rate", "Pager", "Unknown"
+    // IPQS uses uppercase VOIP field; line_type values: "Landline", "Wireless",
+    // "Toll Free", "VOIP", "Satellite", "Premium Rate", "Pager", "Unknown"
     const lineType = (data.line_type ?? 'Unknown').toLowerCase();
 
     return {
-      isVoip: data.voip === true,
+      isVoip: data.VOIP === true,
       isSpoofed: false, // STIR/SHAKEN not available on free tier
       carrierType: lineType,
+      carrierName: data.carrier ?? 'Unknown',
     };
   }
 }
