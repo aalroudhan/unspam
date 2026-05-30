@@ -14,8 +14,8 @@ export default () => ({
     phoneNumber: process.env.TWILIO_PHONE_NUMBER,
     forwardTo: process.env.FORWARD_TO_NUMBER,
   },
-  numverify: {
-    apiKey: process.env.NUMVERIFY_API_KEY,
+  ipqs: {
+    apiKey: process.env.IPQS_API_KEY,
   },
   scorer: {
     url: process.env.SCORER_URL ?? 'http://scorer:8000',

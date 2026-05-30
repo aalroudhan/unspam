@@ -39,6 +39,7 @@ services:
       SCORER_URL: http://scorer:8000
       INTERCEPTION_MODE: native
       JWT_SECRET: changeme
+      IPQS_API_KEY: ${IPQS_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
