@@ -1,0 +1,128 @@
+[
+  {
+    "name": "AT&T",
+    "match_patterns": ["AT&T", "ATT", "SBC", "Cingular"],
+    "abuse_email": "abuse@att.net",
+    "abuse_url": "https://www.att.com/legal/terms.aup.html",
+    "customer_service_phone": "1-800-288-2020"
+  },
+  {
+    "name": "Verizon",
+    "match_patterns": ["Verizon"],
+    "abuse_email": "abuse@verizon.net",
+    "abuse_url": "https://www.verizon.com/about/responsibility/policy-commitment/network-policies",
+    "customer_service_phone": "1-800-922-0204"
+  },
+  {
+    "name": "T-Mobile",
+    "match_patterns": ["T-Mobile", "TMobile", "Sprint", "Nextel", "MetroPCS", "Metro by T-Mobile"],
+    "abuse_email": "abuse@t-mobile.com",
+    "abuse_url": "https://www.t-mobile.com/responsibility/legal/terms-and-conditions",
+    "customer_service_phone": "1-800-937-8997"
+  },
+  {
+    "name": "Comcast / Xfinity",
+    "match_patterns": ["Comcast", "Xfinity"],
+    "abuse_email": "abuse@comcast.net",
+    "abuse_url": "https://www.xfinity.com/corporate/customers/policies/aup",
+    "customer_service_phone": "1-800-934-6489"
+  },
+  {
+    "name": "Charter / Spectrum",
+    "match_patterns": ["Charter", "Spectrum", "Time Warner", "Bright House"],
+    "abuse_email": "abuse@charter.com",
+    "abuse_url": "https://www.spectrum.net/policies/acceptable-use-policy",
+    "customer_service_phone": "1-800-892-4357"
+  },
+  {
+    "name": "Lumen / CenturyLink",
+    "match_patterns": ["Lumen", "CenturyLink", "Qwest", "Level 3"],
+    "abuse_email": "abuse@lumen.com",
+    "abuse_url": "https://www.lumen.com/en-us/resources/legal/terms-of-service.html",
+    "customer_service_phone": "1-800-201-4099"
+  },
+  {
+    "name": "Vonage",
+    "match_patterns": ["Vonage"],
+    "abuse_email": "abuse@vonage.com",
+    "abuse_url": "https://www.vonage.com/legal/",
+    "customer_service_phone": "1-888-669-6111"
+  },
+  {
+    "name": "Twilio",
+    "match_patterns": ["Twilio"],
+    "abuse_email": "abuse@twilio.com",
+    "abuse_url": "https://www.twilio.com/en-us/legal/aup",
+    "customer_service_phone": "1-415-390-2337"
+  },
+  {
+    "name": "Bandwidth",
+    "match_patterns": ["Bandwidth"],
+    "abuse_email": "abuse@bandwidth.com",
+    "abuse_url": "https://www.bandwidth.com/legal/acceptable-use-policy/",
+    "customer_service_phone": "1-800-808-5150"
+  },
+  {
+    "name": "Telnyx",
+    "match_patterns": ["Telnyx"],
+    "abuse_email": "abuse@telnyx.com",
+    "abuse_url": "https://telnyx.com/legal/acceptable-use-policy",
+    "customer_service_phone": "1-888-835-6910"
+  },
+  {
+    "name": "Sinch",
+    "match_patterns": ["Sinch", "CLX", "SAP Digital Interconnect"],
+    "abuse_email": "abuse@sinch.com",
+    "abuse_url": "https://www.sinch.com/legal/acceptable-use-policy/",
+    "customer_service_phone": "1-855-275-1119"
+  },
+  {
+    "name": "TextNow",
+    "match_patterns": ["TextNow"],
+    "abuse_email": "abuse@textnow.com",
+    "abuse_url": "https://www.textnow.com/legal/terms-of-service",
+    "customer_service_phone": null
+  },
+  {
+    "name": "Google Voice / Fi",
+    "match_patterns": ["Google", "Google Voice", "Google Fi"],
+    "abuse_email": "voice-spam@google.com",
+    "abuse_url": "https://support.google.com/voice/answer/9230450",
+    "customer_service_phone": null
+  },
+  {
+    "name": "Lingo",
+    "match_patterns": ["Lingo"],
+    "abuse_email": "abuse@lingo.com",
+    "abuse_url": "https://www.lingo.com/legal",
+    "customer_service_phone": "1-800-995-4646"
+  },
+  {
+    "name": "Windstream",
+    "match_patterns": ["Windstream", "Kinetic"],
+    "abuse_email": "abuse@windstream.com",
+    "abuse_url": "https://www.windstream.com/legal",
+    "customer_service_phone": "1-800-347-1991"
+  },
+  {
+    "name": "Frontier",
+    "match_patterns": ["Frontier"],
+    "abuse_email": "abuse@frontiernet.net",
+    "abuse_url": "https://frontier.com/local/terms-and-conditions",
+    "customer_service_phone": "1-800-921-8101"
+  },
+  {
+    "name": "Cox",
+    "match_patterns": ["Cox"],
+    "abuse_email": "abuse@cox.net",
+    "abuse_url": "https://www.cox.com/residential/support/acceptable-use-policies.html",
+    "customer_service_phone": "1-800-234-3993"
+  },
+  {
+    "name": "US Cellular",
+    "match_patterns": ["US Cellular", "UScellular"],
+    "abuse_email": "abuse@uscellular.com",
+    "abuse_url": "https://www.uscellular.com/legal",
+    "customer_service_phone": "1-888-944-9400"
+  }
+]

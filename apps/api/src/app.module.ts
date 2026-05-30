@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { CallsModule } from './calls/calls.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ReportsModule } from './reports/reports.module';
 import { CallLog } from './calls/entities/call-log.entity';
 import { CommunityFlag } from './calls/entities/community-flag.entity';
 
@@ -29,6 +30,7 @@ import { CommunityFlag } from './calls/entities/community-flag.entity';
     CallsModule,
     WebhookModule,
     NotificationsModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

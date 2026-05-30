@@ -31,14 +31,14 @@ export class CallLog {
   @Column({ nullable: true })
   carrierType: string;
 
-  @Column({ default: false })
-  isVoip: boolean;
-
-  @Column({ default: false })
-  isSpoofed: boolean;
-
   @Column({ nullable: true })
-  flagCount: number;
+  carrierName!: string;
+
+  @Column({ default: false })
+  isVoip: boolean = false;
+
+  @Column({ default: false })
+  isSpoofed: boolean = false;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -56,6 +56,7 @@ export class WebhookService {
       outcome,
       mode,
       carrierType: carrier.carrierType,
+      carrierName: carrier.carrierName,
       isVoip: carrier.isVoip,
       isSpoofed: carrier.isSpoofed,
     });

@@ -82,6 +82,20 @@
     #flag-btn:hover:not(:disabled) { background: #7f1d1d !important; color: #fca5a5; }
     #flag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .flag-confirm { font-size: 0.8rem; color: #4ade80; margin-top: 0.5rem; display: none; }
+
+    /* Reports */
+    .report-btn { background: #1a1a1a; border: 1px solid #333; color: #aaa; font-size: 0.875rem; font-weight: 500; margin-top: 0; }
+    .report-btn:hover { background: #222; border-color: #555; color: #f0f0f0; }
+    .report-row { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid #1f1f1f; gap: 1rem; }
+    .report-row:last-child { border-bottom: none; }
+    .report-carrier { font-size: 0.875rem; font-weight: 600; color: #f0f0f0; }
+    .report-carrier.unmatched { color: #555; }
+    .report-meta { font-size: 0.75rem; color: #555; margin-top: 0.15rem; }
+    .report-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+    .report-count { font-size: 0.75rem; color: #aaa; white-space: nowrap; }
+    .report-open { padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid #333; background: transparent; color: #aaa; font-size: 0.75rem; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+    .report-open:hover { border-color: #e63946; color: #f87171; }
+    .report-open.no-contact { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -132,6 +146,16 @@
     <div class="card">
       <div class="log-title">Recent interceptions</div>
       <div id="log-list"><p class="empty">No calls logged yet.</p></div>
+    </div>
+
+    <!-- Carrier reports -->
+    <div class="card">
+      <div class="log-title">Carrier complaint reports</div>
+      <p style="font-size:0.8rem;color:#555;margin-bottom:1rem;">
+        Groups all intercepted numbers by carrier and generates a pre-filled complaint email for each one.
+      </p>
+      <button class="report-btn" onclick="loadReports()">Generate carrier reports</button>
+      <div id="report-list" style="margin-top:1rem;"></div>
     </div>
 
   </div>
@@ -291,6 +315,35 @@
         setTimeout(() => { confirm.style.display = 'none'; }, 2000);
         await checkNumber({ afterFlag: true });
       } catch {}
+    }
+
+    async function loadReports() {
+      const el = document.getElementById('report-list');
+      el.innerHTML = '<p style="font-size:0.8rem;color:#555;">Loading…</p>';
+      try {
+        const res = await fetch(`${API}/reports`);
+        const reports = await res.json();
+        if (!reports.length) {
+          el.innerHTML = '<p class="empty">No intercepted calls logged yet.</p>';
+          return;
+        }
+        el.innerHTML = reports.map(r => `
+          <div class="report-row">
+            <div>
+              <div class="report-carrier ${r.unmatched ? 'unmatched' : ''}">${r.carrier}</div>
+              <div class="report-meta">${r.abuseEmail ?? 'No abuse contact found'}</div>
+            </div>
+            <div class="report-right">
+              <span class="report-count">${r.numberCount} number${r.numberCount !== 1 ? 's' : ''}</span>
+              ${r.gmailUrl
+                ? `<a class="report-open" href="${r.gmailUrl}" target="_blank">Open Gmail →</a>`
+                : `<span class="report-open no-contact">No contact</span>`
+              }
+            </div>
+          </div>`).join('');
+      } catch {
+        el.innerHTML = '<p class="empty">Could not reach the API.</p>';
+      }
     }
 
     document.getElementById('phone').addEventListener('keydown', e => {
