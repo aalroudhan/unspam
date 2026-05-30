@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { CarrierInfo, ICarrierLookup } from '../interfaces/carrier-lookup.interface';
 
-const UNKNOWN: CarrierInfo = { isVoip: false, isSpoofed: false, carrierType: 'unknown', carrierName: 'Unknown' };
+const UNKNOWN: CarrierInfo = { isVoip: false, isNonFixedVoip: false, isSpoofed: false, carrierType: 'unknown', carrierName: 'Unknown' };
 
 @Injectable()
 export class IpQualityScoreAdapter implements ICarrierLookup {
@@ -37,8 +37,11 @@ export class IpQualityScoreAdapter implements ICarrierLookup {
       }
 
       // IPQS uses uppercase VOIP; line_type: "Landline","Wireless","Toll Free","VOIP", etc.
+      // IPQS cannot distinguish fixed vs non-fixed VoIP, so treat all detected VoIP as non-fixed
+      const isVoip = data.VOIP === true;
       return {
-        isVoip: data.VOIP === true,
+        isVoip,
+        isNonFixedVoip: isVoip,
         isSpoofed: false,
         carrierType: (data.line_type ?? 'Unknown').toLowerCase(),
         carrierName: data.carrier ?? 'Unknown',

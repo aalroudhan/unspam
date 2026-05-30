@@ -133,10 +133,16 @@
 
     const HANDLERS = [
       {
-        key: 'voip_number',
-        name: 'VoIP Detection',
-        desc: 'Checks if the number is registered to a VoIP carrier.',
+        key: 'non_fixed_voip',
+        name: 'Non-Fixed VoIP',
+        desc: 'Disposable VoIP with no physical address (TextNow, Google Voice). Highest risk.',
         contrib: '+40%',
+      },
+      {
+        key: 'fixed_voip',
+        name: 'Fixed VoIP',
+        desc: 'VoIP registered to a physical address (Vonage, magicJack). Lower risk.',
+        contrib: '+20%',
       },
       {
         key: 'spoofed_number',

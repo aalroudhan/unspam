@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 export interface ScoreRequest {
   callerNumber: string;
   isVoip: boolean;
+  isNonFixedVoip: boolean;
   isSpoofed: boolean;
   carrierType: string;
   communityFlags: number;

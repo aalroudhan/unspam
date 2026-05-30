@@ -1,5 +1,6 @@
 export interface CarrierInfo {
   isVoip: boolean;
+  isNonFixedVoip: boolean; // nonFixedVoip = no physical address (TextNow, Google Voice) — higher risk
   isSpoofed: boolean;
   carrierType: string;
   carrierName: string;

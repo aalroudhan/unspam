@@ -36,6 +36,7 @@ export class WebhookService {
     const { score, reasons } = await this.scorer.score({
       callerNumber,
       isVoip: carrier.isVoip,
+      isNonFixedVoip: carrier.isNonFixedVoip,
       isSpoofed: carrier.isSpoofed,
       carrierType: carrier.carrierType,
       communityFlags,
@@ -55,7 +56,6 @@ export class WebhookService {
       carrierType: carrier.carrierType,
       isVoip: carrier.isVoip,
       isSpoofed: carrier.isSpoofed,
-      flagCount: communityFlags,
     });
 
     this.events.emit(CALL_INTERCEPTED_EVENT, callLog);

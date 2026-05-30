@@ -25,10 +25,11 @@ export class TwilioAdapter implements ICarrierLookup {
     );
 
     const lineType = data.line_type_intelligence?.type ?? 'unknown';
-    // Twilio returns fixedVoip (e.g. Vonage home) and nonFixedVoip (e.g. Google Voice, TextNow)
-    const isVoip = lineType === 'fixedVoip' || lineType === 'nonFixedVoip';
+    const isNonFixedVoip = lineType === 'nonFixedVoip';
+    const isVoip = isNonFixedVoip || lineType === 'fixedVoip';
     return {
       isVoip,
+      isNonFixedVoip,
       isSpoofed: data.reassigned_number?.last_reassigned_date != null,
       carrierType: lineType,
       carrierName: data.line_type_intelligence?.carrier_name ?? 'Unknown',
