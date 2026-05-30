@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: unspam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scorer:
+    build: ./apps/scorer
+    ports:
+      - '8000:8000'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/docs']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build: ./apps/api
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: unspam
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      SCORER_URL: http://scorer:8000
+      INTERCEPTION_MODE: native
+      JWT_SECRET: changeme
+    depends_on:
+      postgres:
+        condition: service_healthy
+      scorer:
+        condition: service_healthy
+
+  web:
+    image: nginx:alpine
+    ports:
+      - '8080:80'
+    volumes:
+      - ./apps/web:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unspam — Check a Number</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 420px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    p.sub { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
+    input { width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #333; background: #0f0f0f; color: #f0f0f0; font-size: 1rem; outline: none; }
+    input:focus { border-color: #555; }
+    button { margin-top: 1rem; width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: #e63946; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #c1121f; }
+    button:disabled { background: #444; cursor: not-allowed; }
+    .result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-size: 0.9rem; display: none; }
+    .result.spam { background: #2a0a0a; border: 1px solid #7f1d1d; }
+    .result.clean { background: #0a1f0a; border: 1px solid #14532d; }
+    .score { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .reasons { list-style: none; margin-top: 0.75rem; }
+    .reasons li::before { content: '→ '; color: #888; }
+    .reasons li { color: #ccc; font-size: 0.85rem; padding: 0.2rem 0; }
+    .log-section { margin-top: 2.5rem; border-top: 1px solid #2a2a2a; padding-top: 1.5rem; }
+    .log-section h2 { font-size: 1rem; margin-bottom: 1rem; color: #aaa; }
+    .log-entry { padding: 0.6rem 0; border-bottom: 1px solid #1f1f1f; display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .log-entry .number { color: #f0f0f0; font-family: monospace; }
+    .log-entry .outcome { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .outcome.blocked, .outcome.voicemail { background: #7f1d1d; color: #fca5a5; }
+    .outcome.allowed { background: #14532d; color: #86efac; }
+    .empty { color: #555; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Unspam</h1>
+    <p class="sub">Check if a phone number is spam before you pick up.</p>
+
+    <label for="phone">Phone number</label>
+    <input id="phone" type="tel" placeholder="+1 555 000 0000" />
+    <button id="check-btn" onclick="checkNumber()">Check number</button>
+
+    <div class="result" id="result">
+      <div class="score" id="score-display"></div>
+      <div id="verdict"></div>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+
+    <div class="log-section">
+      <h2>Recent interceptions</h2>
+      <div id="log-list"><p class="empty">No calls logged yet.</p></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3000';
+
+    async function checkNumber() {
+      const phone = document.getElementById('phone').value.trim();
+      if (!phone) return;
+
+      const btn = document.getElementById('check-btn');
+      btn.disabled = true;
+      btn.textContent = 'Checking…';
+
+      try {
+        const res = await fetch(`${API}/webhook/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callerNumber: phone }),
+        });
+        const data = await res.json();
+
+        const resultEl = document.getElementById('result');
+        const isSpam = data.outcome !== 'allowed';
+        resultEl.className = `result ${isSpam ? 'spam' : 'clean'}`;
+        resultEl.style.display = 'block';
+
+        document.getElementById('score-display').textContent =
+          `${Math.round((data.score ?? 0) * 100)}% spam likelihood`;
+        document.getElementById('verdict').textContent =
+          isSpam ? `Intercepted — ${data.outcome}` : 'Looks clean';
+
+        const reasonsList = document.getElementById('reasons');
+        reasonsList.innerHTML = (data.reasons ?? [])
+          .map(r => `<li>${r.replace(/_/g, ' ')}</li>`).join('');
+
+        loadLog();
+      } catch (e) {
+        alert('Could not reach the API. Is it running?');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Check number';
+      }
+    }
+
+    async function loadLog() {
+      try {
+        const res = await fetch(`${API}/calls?limit=10`);
+        const { data } = await res.json();
+        const el = document.getElementById('log-list');
+        if (!data?.length) { el.innerHTML = '<p class="empty">No calls logged yet.</p>'; return; }
+        el.innerHTML = data.map(c => `
+          <div class="log-entry">
+            <span class="number">${c.callerNumber}</span>
+            <span class="outcome ${c.outcome}">${c.outcome}</span>
+          </div>`).join('');
+      } catch {}
+    }
+
+    document.getElementById('phone').addEventListener('keydown', e => {
+      if (e.key === 'Enter') checkNumber();
+    });
+
+    loadLog();
+  </script>
+</body>
+</html>
