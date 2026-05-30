@@ -174,7 +174,7 @@
       },
     ];
 
-    async function checkNumber() {
+    async function checkNumber({ afterFlag = false } = {}) {
       const phone = document.getElementById('phone').value.trim();
       if (!phone) return;
 
@@ -189,7 +189,7 @@
           body: JSON.stringify({ callerNumber: phone }),
         });
         const data = await res.json();
-        renderDecision(data);
+        renderDecision(data, { enableFlag: !afterFlag });
         loadLog();
       } catch {
         alert('Could not reach the API. Is it running?');
@@ -199,13 +199,12 @@
       }
     }
 
-    function renderDecision(data) {
+    function renderDecision(data, { enableFlag = true } = {}) {
       const { outcome, score = 0, reasons = [], carrier = {}, communityFlags = 0 } = data;
       const pct = Math.round(score * 100);
 
-      // Re-enable flag button for this new check result
       const flagBtn = document.getElementById('flag-btn');
-      flagBtn.disabled = false;
+      flagBtn.disabled = !enableFlag;
       document.getElementById('flag-confirm').style.display = 'none';
 
       // Verdict
@@ -290,9 +289,8 @@
         const confirm = document.getElementById('flag-confirm');
         confirm.style.display = 'block';
         setTimeout(() => { confirm.style.display = 'none'; }, 2000);
-        await checkNumber();
+        await checkNumber({ afterFlag: true });
       } catch {}
-      // stays disabled until the user runs a new check
     }
 
     document.getElementById('phone').addEventListener('keydown', e => {
