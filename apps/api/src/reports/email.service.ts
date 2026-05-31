@@ -21,7 +21,14 @@ export class EmailService {
 
   async send(to: string, subject: string, body: string): Promise<void> {
     const from = this.config.get<string>('email.user');
-    await this.transporter.sendMail({ from, to, subject, text: body });
-    this.logger.log(`Sent complaint to ${to}`);
+    const override = this.config.get<string>('email.toOverride');
+    const recipient = override || to;
+
+    if (override) {
+      this.logger.warn(`EMAIL_TO_OVERRIDE set — redirecting to ${override} (intended: ${to})`);
+    }
+
+    await this.transporter.sendMail({ from, to: recipient, subject, text: body });
+    this.logger.log(`Sent complaint to ${recipient}`);
   }
 }
