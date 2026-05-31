@@ -92,12 +92,9 @@ unspam/
 
 ## Local Development
 
-### Prerequisites
+### Mac / Linux
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) or Docker Engine + Compose (Linux)
-- Git
-
-### Run locally
+Install Git and Docker, then:
 
 ```bash
 git clone https://github.com/aalroudhan/unspam.git
@@ -113,6 +110,116 @@ docker compose up --build
 | API | http://localhost:3000 |
 | API docs (Swagger) | http://localhost:3000/docs |
 | Scorer | http://localhost:8000/docs |
+
+---
+
+### Windows (WSL)
+
+Docker Engine runs inside WSL — no Docker Desktop license required.
+
+#### Step 1 — Enable WSL2
+
+Open PowerShell as Administrator and run:
+
+```powershell
+wsl --install
+```
+
+Restart your machine when prompted. This installs WSL2 with Ubuntu by default.
+
+If you already have WSL but not Ubuntu, install it:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+#### Step 2 — Install Docker Engine inside WSL
+
+Open your Ubuntu terminal (search **Ubuntu** in the Start menu) and run:
+
+```bash
+# Add Docker's repository
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Allow running Docker without sudo
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+#### Step 3 — Install Git
+
+```bash
+sudo apt install -y git
+```
+
+#### Step 4 — Clone the repo
+
+```bash
+git clone https://github.com/aalroudhan/unspam.git
+cd unspam
+```
+
+#### Step 5 — Create the .env file
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Fill in your credentials. See [Environment Variables](#environment-variables) below for what each value means and where to get it.
+
+Save and exit: `Ctrl+X` → `Y` → `Enter`.
+
+#### Step 6 — Start Docker and launch the project
+
+WSL does not start Docker automatically. You need to start it each session:
+
+```bash
+sudo service docker start
+docker compose up --build -d
+```
+
+Check everything is running:
+
+```bash
+docker compose ps
+```
+
+Open your browser and go to **http://localhost:8080**.
+
+#### Starting the project in future sessions
+
+Each time you open a new WSL terminal:
+
+```bash
+sudo service docker start
+cd unspam
+docker compose up -d
+```
+
+#### Stopping the project
+
+```bash
+docker compose down
+```
 
 ---
 
