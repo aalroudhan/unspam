@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { CallLog, CallOutcome } from '../calls/entities/call-log.entity';
+import { EmailService } from './email.service';
 
 interface CarrierEntry {
   name: string;
@@ -19,7 +20,6 @@ export interface CarrierReport {
   abuseUrl: string | null;
   numberCount: number;
   numbers: string[];
-  gmailUrl: string | null;
   unmatched: boolean;
 }
 
@@ -30,6 +30,7 @@ export class ReportsService {
   constructor(
     @InjectRepository(CallLog)
     private readonly callLogs: Repository<CallLog>,
+    private readonly email: EmailService,
   ) {
     this.carriers = JSON.parse(
       readFileSync(join(__dirname, 'data', 'carriers.json'), 'utf8'),
@@ -42,7 +43,6 @@ export class ReportsService {
       order: { createdAt: 'DESC' },
     });
 
-    // Group unique numbers by carrier
     const seen = new Set<string>();
     const byCarrier = new Map<string, { numbers: Set<string>; entry: CarrierEntry | null }>();
 
@@ -61,45 +61,39 @@ export class ReportsService {
     }
 
     return Array.from(byCarrier.entries())
-      .map(([carrier, { numbers, entry }]) => {
-        const numList = Array.from(numbers);
-        const gmailUrl = entry?.abuse_email
-          ? this.buildGmailUrl(entry, numList)
-          : null;
-
-        return {
-          carrier,
-          abuseEmail: entry?.abuse_email ?? null,
-          abuseUrl: entry?.abuse_url ?? null,
-          numberCount: numList.length,
-          numbers: numList,
-          gmailUrl,
-          unmatched: !entry,
-        };
-      })
+      .map(([carrier, { numbers, entry }]) => ({
+        carrier,
+        abuseEmail: entry?.abuse_email ?? null,
+        abuseUrl: entry?.abuse_url ?? null,
+        numberCount: numbers.size,
+        numbers: Array.from(numbers),
+        unmatched: !entry,
+      }))
       .sort((a, b) => b.numberCount - a.numberCount);
   }
 
-  private matchCarrier(carrierName: string): CarrierEntry | null {
-    for (const entry of this.carriers) {
-      if (entry.match_patterns.some((p) => carrierName.toLowerCase().includes(p.toLowerCase()))) {
-        return entry;
-      }
-    }
-    return null;
+  async sendReport(carrierName: string): Promise<void> {
+    const reports = await this.generateReports();
+    const report = reports.find((r) => r.carrier === carrierName);
+
+    if (!report) throw new NotFoundException(`No report found for carrier: ${carrierName}`);
+    if (!report.abuseEmail) throw new NotFoundException(`No abuse contact known for: ${carrierName}`);
+
+    const subject = `Robocall/spam complaint — ${report.numberCount} number${report.numberCount !== 1 ? 's' : ''} on your network`;
+    const body = this.buildBody(report);
+
+    await this.email.send(report.abuseEmail, subject, body);
   }
 
-  private buildGmailUrl(entry: CarrierEntry, numbers: string[]): string {
-    const subject = `Robocall/spam complaint — ${numbers.length} number${numbers.length > 1 ? 's' : ''} on your network`;
-
-    const numberList = numbers.map((n) => `  • ${n}`).join('\n');
-    const body = [
+  private buildBody(report: CarrierReport): string {
+    const numberList = report.numbers.map((n) => `  • ${n}`).join('\n');
+    return [
       'Hello,',
       '',
       'I am filing a formal complaint regarding phone numbers on your network that are being used to place unsolicited spam or robocall traffic.',
       '',
-      `Carrier identified : ${entry.name}`,
-      `Numbers flagged    : ${numbers.length}`,
+      `Carrier identified : ${report.carrier}`,
+      `Numbers flagged    : ${report.numberCount}`,
       '',
       numberList,
       '',
@@ -112,12 +106,14 @@ export class ReportsService {
       '',
       'Thank you.',
     ].join('\n');
+  }
 
-    return (
-      'https://mail.google.com/mail/?view=cm&fs=1' +
-      '&to=' + encodeURIComponent(entry.abuse_email) +
-      '&su=' + encodeURIComponent(subject) +
-      '&body=' + encodeURIComponent(body)
-    );
+  private matchCarrier(carrierName: string): CarrierEntry | null {
+    for (const entry of this.carriers) {
+      if (entry.match_patterns.some((p) => carrierName.toLowerCase().includes(p.toLowerCase()))) {
+        return entry;
+      }
+    }
+    return null;
   }
 }

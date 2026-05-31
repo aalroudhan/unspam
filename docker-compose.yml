@@ -44,6 +44,8 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
       FORWARD_TO_NUMBER: ${FORWARD_TO_NUMBER:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
     depends_on:
       postgres:
         condition: service_healthy
