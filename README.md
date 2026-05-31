@@ -6,9 +6,9 @@ A spam call detection system that scores incoming phone numbers using carrier da
 
 Unspam supports two interception modes.
 
-### Mode A — Twilio
+### Mode A — Twilio (Recommended)
 
-Best for spoofed number detection. Requires a Twilio account.
+Full carrier lookup including VoIP detection and spoofing signals.
 
 1. User forwards their carrier calls to their Twilio number
 2. Twilio hits the `/webhook/call` endpoint on an incoming call
@@ -19,12 +19,13 @@ Best for spoofed number detection. Requires a Twilio account.
 
 ### Mode B — Native
 
-No Twilio required. Lower cost. No spoofed number detection.
+No Twilio required. Carrier lookup is unavailable — scoring relies on community flags only.
 
 1. App or device queries `/webhook/check` before a call rings
-2. Backend calls IPQualityScore to determine carrier type and VoIP status
-3. Scoring engine produces a spam score
-4. Result is returned — device blocks or allows the call
+2. Scoring engine scores based on community flags
+3. Result is returned — device blocks or allows the call
+
+---
 
 ## Scoring
 
@@ -33,10 +34,12 @@ Each incoming number passes through a chain of handlers. Each handler that fires
 | Handler | Fires when | Score added |
 |---|---|---|
 | Non-Fixed VoIP | Number has no registered physical address (TextNow, Google Voice) | +40% |
-| Fixed VoIP | Number is VoIP but has a registered address (Vonage, magicJack) | +20% |
+| Fixed VoIP | Number is VoIP registered to a physical address (Vonage, magicJack) | +20% |
 | Spoofing | Number was reassigned to a new subscriber within 90 days (Twilio mode only) | +50% |
 | Community Blocklist | Number has been flagged by 5+ users | +30% |
-| High-Risk Carrier | Number is on a prepaid or non-fixed VoIP carrier | +20% |
+| High-Risk Carrier | Prepaid or non-fixed VoIP carrier type | +20% |
+
+---
 
 ## Tech Stack
 
@@ -46,8 +49,7 @@ Each incoming number passes through a chain of handlers. Each handler that fires
 | Scorer | Python + FastAPI |
 | Database | PostgreSQL |
 | Web UI | HTML/CSS/JS served by nginx |
-| Carrier Lookup — Mode A | Twilio Lookup v2 |
-| Carrier Lookup — Mode B | IPQualityScore (free tier: 200 req/month) |
+| Carrier Lookup | Twilio Lookup v2 |
 | Infrastructure | Docker + Docker Compose |
 
 ## Project Structure
@@ -58,10 +60,11 @@ unspam/
 │   ├── api/                          # NestJS backend
 │   │   └── src/
 │   │       ├── calls/                # Call log + community flags
-│   │       ├── carrier/              # Adapter pattern: Twilio / IPQS
+│   │       ├── carrier/              # Adapter pattern: Twilio / Null
 │   │       ├── interception/         # Strategy pattern: Twilio / Native
 │   │       ├── scorer/               # HTTP client to scorer service
 │   │       ├── webhook/              # Facade: orchestrates all subsystems
+│   │       ├── reports/              # Carrier complaint report generation + email
 │   │       ├── notifications/        # Observer: push notification handler
 │   │       ├── database/             # Seed data (50 known spam numbers)
 │   │       └── common/               # Global filter, interceptor, pipes
@@ -69,7 +72,8 @@ unspam/
 │   │   └── handlers/                 # Chain of Responsibility: VoIP → Blocklist → Carrier
 │   └── web/                          # Static web frontend
 ├── docker-compose.yml
-└── .env.example
+├── .env.example
+└── README.md
 ```
 
 ## Design Patterns
@@ -77,7 +81,7 @@ unspam/
 | Pattern | Where |
 |---|---|
 | Repository | `CallsRepository`, `CommunityFlagsRepository` — separates DB access from business logic |
-| Adapter | `TwilioAdapter`, `IpQualityScoreAdapter` behind `ICarrierLookup` |
+| Adapter | `TwilioAdapter`, `NullCarrierAdapter` behind `ICarrierLookup` |
 | Strategy | `TwilioInterceptor`, `NativeInterceptor` behind `ICallInterceptor` |
 | Factory Method | `useFactory` selects the right adapter/strategy at runtime based on `INTERCEPTION_MODE` |
 | Facade | `WebhookService` — single entry point over carrier lookup, scoring, interception, logging |
@@ -98,7 +102,8 @@ unspam/
 ```bash
 git clone https://github.com/aalroudhan/unspam.git
 cd unspam
-cp .env.example .env   # fill in credentials (see Environment Variables below)
+cp .env.example .env
+# Edit .env with your credentials — see Environment Variables below
 docker compose up --build
 ```
 
@@ -111,6 +116,80 @@ docker compose up --build
 
 ---
 
+## Environment Variables
+
+Create a `.env` file in the project root by copying the example:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in each value. The file is gitignored and will never be committed.
+
+```env
+# ── App ──────────────────────────────────────────────────────────────────────
+
+# Set to a long random string — used to sign tokens
+JWT_SECRET=change_this_to_a_long_random_string
+
+# "twilio" uses Twilio Lookup for carrier data (recommended)
+# "native" skips carrier lookup — community flags only
+INTERCEPTION_MODE=twilio
+
+# ── Database ─────────────────────────────────────────────────────────────────
+# Leave these as-is when running via Docker Compose
+
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=unspam
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# ── Scorer ───────────────────────────────────────────────────────────────────
+# Leave as-is when running via Docker Compose
+
+SCORER_URL=http://scorer:8000
+
+# ── Twilio ───────────────────────────────────────────────────────────────────
+# Sign up at twilio.com (free trial available)
+# Account SID and Auth Token are on the Twilio Console dashboard
+
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Only required for Mode A (full call interception via call forwarding):
+TWILIO_PHONE_NUMBER=+1xxxxxxxxxx   # the Twilio number that receives forwarded calls
+FORWARD_TO_NUMBER=+1xxxxxxxxxx    # your real phone number (clean calls forwarded here)
+
+# ── Email ────────────────────────────────────────────────────────────────────
+# Used to send carrier complaint reports from the web UI
+# Gmail setup:
+#   1. Enable 2-Step Verification: myaccount.google.com → Security
+#   2. Search "App passwords" → generate one for Mail
+#   3. Use that 16-character password below (spaces are fine)
+
+EMAIL_USER=your@gmail.com
+EMAIL_PASS=xxxx xxxx xxxx xxxx
+```
+
+### Getting your Twilio credentials
+
+1. Sign up at **twilio.com** — no credit card required for trial
+2. On the Console dashboard you will see:
+   - **Account SID** — starts with `AC`
+   - **Auth Token** — click the eye icon to reveal it
+3. Copy both into your `.env`
+
+### Getting your Gmail app password
+
+1. Go to **myaccount.google.com**
+2. Click **Security** in the left sidebar
+3. Under *How you sign in to Google*, enable **2-Step Verification** if not already on
+4. Search **"App passwords"** in the search bar at the top of the page
+5. Generate one → select **Mail** → copy the 16-character password into `EMAIL_PASS`
+
+---
+
 ## Deployment
 
 ### Server requirements
@@ -119,7 +198,7 @@ Any Linux server with at least:
 
 - 1 vCPU, 1 GB RAM (2 GB recommended)
 - Ubuntu 22.04 LTS (or any Debian-based distro)
-- Ports 80, 443, and 3000 open in the firewall
+- Ports **80**, **443**, and **3000** open in the firewall
 
 Popular options: DigitalOcean Droplet ($6/mo), AWS EC2 t3.micro, Hetzner CX11.
 
@@ -141,7 +220,8 @@ git --version
 # Add Docker's official GPG key and repository
 sudo apt install -y ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo \
@@ -173,14 +253,26 @@ cd unspam
 
 ---
 
-### Step 4 — Configure environment
+### Step 4 — Create and fill in the .env file
 
 ```bash
 cp .env.example .env
-nano .env   # or use vim / any editor
+nano .env
 ```
 
-Fill in the values (see [Environment Variables](#environment-variables) below).
+Fill in at minimum:
+
+| Variable | Where to get it |
+|---|---|
+| `JWT_SECRET` | Any long random string — e.g. `openssl rand -hex 32` |
+| `TWILIO_ACCOUNT_SID` | Twilio Console dashboard |
+| `TWILIO_AUTH_TOKEN` | Twilio Console dashboard |
+| `EMAIL_USER` | Your Gmail address |
+| `EMAIL_PASS` | Gmail app password (see above) |
+
+Leave `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and `SCORER_URL` as-is — Docker Compose handles those automatically.
+
+Save and exit (`Ctrl+X` → `Y` in nano).
 
 ---
 
@@ -190,15 +282,15 @@ Fill in the values (see [Environment Variables](#environment-variables) below).
 docker compose up --build -d
 ```
 
-The `-d` flag runs everything in the background. All four containers will start: `postgres`, `scorer`, `api`, `web`.
+The `-d` flag runs everything in the background. Four containers start: `postgres`, `scorer`, `api`, `web`.
 
-Check they are running:
+Check they are all running:
 
 ```bash
 docker compose ps
 ```
 
-Check the API logs:
+Check the API started cleanly:
 
 ```bash
 docker compose logs api
@@ -206,7 +298,7 @@ docker compose logs api
 
 ---
 
-### Step 6 — (Optional) Set up a domain with HTTPS
+### Step 6 — (Optional) Domain and HTTPS
 
 Install nginx and certbot:
 
@@ -246,16 +338,24 @@ sudo certbot --nginx -d yourdomain.com
 
 ### Step 7 — (Mode A only) Point Twilio webhook to your server
 
-In the Twilio console, set your phone number's incoming call webhook to:
+In the Twilio console go to **Phone Numbers → Manage → your number → Voice & Fax**.
+
+Set **A call comes in** → Webhook:
 
 ```
 POST https://yourdomain.com/api/webhook/call
 ```
 
-Or using your server's IP directly (no domain required):
+Or if you don't have a domain, use your server's IP directly:
 
 ```
 POST http://YOUR_SERVER_IP:3000/webhook/call
+```
+
+Then dial this from your phone to forward calls through Twilio (replace the number with your Twilio number):
+
+```
+**21*+1xxxxxxxxxx#
 ```
 
 ---
@@ -267,50 +367,18 @@ git pull
 docker compose up --build -d
 ```
 
-Only the changed containers are rebuilt. The database volume is preserved.
-
----
-
-## Environment Variables
-
-Create a `.env` file in the project root. Never commit this file.
-
-```env
-# App
-JWT_SECRET=change_this_to_a_random_string
-INTERCEPTION_MODE=native   # "twilio" or "native"
-
-# Database (leave as-is for Docker)
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=unspam
-DB_USER=postgres
-DB_PASSWORD=postgres
-
-# Scorer (leave as-is for Docker)
-SCORER_URL=http://scorer:8000
-
-# Mode A — Twilio
-# Sign up at twilio.com — Account SID and Auth Token are on the dashboard
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=       # the Twilio number that receives forwarded calls
-FORWARD_TO_NUMBER=         # your real phone number
-
-# Mode B — IPQualityScore
-# Free tier (200 req/month): https://www.ipqualityscore.com/create-account
-IPQS_API_KEY=
-```
+Only changed containers are rebuilt. The database volume is preserved between updates.
 
 ---
 
 ## Roadmap
 
 - [x] VoIP detection (fixed and non-fixed)
-- [x] Spoofed number detection (number reassignment, Twilio mode)
-- [x] Community-sourced blocklist with seed data
+- [x] Spoofed number detection via number reassignment (Twilio mode)
+- [x] Community-sourced blocklist with 50 pre-seeded numbers
 - [x] Chain of Responsibility scoring engine
-- [x] Web UI with decision breakdown
+- [x] Web UI with per-handler decision breakdown
+- [x] Carrier complaint report generation with direct email sending
 - [ ] Call frequency detection
 - [ ] Geographic pattern analysis
 - [ ] Voicemail playback in-app
