@@ -19,13 +19,12 @@ export class EmailService {
     });
   }
 
-  async send(to: string, subject: string, body: string): Promise<void> {
-    const from = this.config.get<string>('email.user');
-    const override = this.config.get<string>('email.toOverride');
-    const recipient = override || to;
+  async send(to: string, subject: string, body: string, testMode = false): Promise<void> {
+    const from = this.config.get<string>('email.user')!;
+    const recipient = testMode ? from : to;
 
-    if (override) {
-      this.logger.warn(`EMAIL_TO_OVERRIDE set — redirecting to ${override} (intended: ${to})`);
+    if (testMode) {
+      this.logger.warn(`Test mode — redirecting to ${from} (intended: ${to})`);
     }
 
     await this.transporter.sendMail({ from, to: recipient, subject, text: body });

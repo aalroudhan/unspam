@@ -1,12 +1,16 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
 import { ReportsService } from './reports.service';
 
 class SendReportDto {
   @IsString()
   @IsNotEmpty()
   carrier: string;
+
+  @IsOptional()
+  @IsBoolean()
+  testMode?: boolean;
 }
 
 @ApiTags('reports')
@@ -23,7 +27,7 @@ export class ReportsController {
   @Post('send')
   @ApiOperation({ summary: 'Send complaint email to a carrier abuse desk' })
   async sendReport(@Body() dto: SendReportDto) {
-    await this.reportsService.sendReport(dto.carrier);
+    await this.reportsService.sendReport(dto.carrier, dto.testMode ?? false);
     return { sent: true };
   }
 }

@@ -155,6 +155,10 @@
       <p style="font-size:0.8rem;color:#555;margin-bottom:1rem;">
         Groups all intercepted numbers by carrier and generates a pre-filled complaint email for each one.
       </p>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
+        <input type="checkbox" id="test-mode" checked style="accent-color:#e63946;width:14px;height:14px;cursor:pointer;">
+        <label for="test-mode" style="font-size:0.8rem;color:#aaa;cursor:pointer;">Test mode — send to my email only</label>
+      </div>
       <button class="report-btn" onclick="loadReports()">Generate carrier reports</button>
       <div id="report-list" style="margin-top:1rem;"></div>
     </div>
@@ -350,11 +354,12 @@
     async function sendReport(carrier, btn) {
       btn.disabled = true;
       btn.textContent = 'Sending…';
+      const testMode = document.getElementById('test-mode').checked;
       try {
         const res = await fetch(`${API}/reports/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ carrier }),
+          body: JSON.stringify({ carrier, testMode }),
         });
         if (!res.ok) throw new Error();
         btn.textContent = 'Sent ✓';

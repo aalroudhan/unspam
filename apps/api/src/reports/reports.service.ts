@@ -72,17 +72,17 @@ export class ReportsService {
       .sort((a, b) => b.numberCount - a.numberCount);
   }
 
-  async sendReport(carrierName: string): Promise<void> {
+  async sendReport(carrierName: string, testMode: boolean): Promise<void> {
     const reports = await this.generateReports();
     const report = reports.find((r) => r.carrier === carrierName);
 
     if (!report) throw new NotFoundException(`No report found for carrier: ${carrierName}`);
-    if (!report.abuseEmail) throw new NotFoundException(`No abuse contact known for: ${carrierName}`);
+    if (!report.abuseEmail && !testMode) throw new NotFoundException(`No abuse contact known for: ${carrierName}`);
 
     const subject = `Robocall/spam complaint — ${report.numberCount} number${report.numberCount !== 1 ? 's' : ''} on your network`;
     const body = this.buildBody(report);
 
-    await this.email.send(report.abuseEmail, subject, body);
+    await this.email.send(report.abuseEmail!, subject, body, testMode);
   }
 
   private buildBody(report: CarrierReport): string {

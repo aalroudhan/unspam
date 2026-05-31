@@ -46,7 +46,6 @@ services:
       FORWARD_TO_NUMBER: ${FORWARD_TO_NUMBER:-}
       EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_PASS: ${EMAIL_PASS:-}
-      EMAIL_TO_OVERRIDE: ${EMAIL_TO_OVERRIDE:-}
     depends_on:
       postgres:
         condition: service_healthy
