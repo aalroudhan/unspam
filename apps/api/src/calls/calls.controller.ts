@@ -12,6 +12,12 @@ export class CallsController {
     private readonly communityFlags: CommunityFlagsService,
   ) {}
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Aggregated stats and 7-day daily trend' })
+  getStats() {
+    return this.callsService.getStats();
+  }
+
   @Get()
   @ApiOperation({ summary: 'Paginated call log' })
   getCallLog(@Query() query: QueryCallsDto) {

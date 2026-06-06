@@ -16,4 +16,7 @@ export class CallsService {
     return this.repo.save(callLog);
   }
 
+  async getStats() {
+    return this.repo.getStats();
+  }
 }
