@@ -3,11 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CallLog } from '../calls/entities/call-log.entity';
 import { EmailService } from './email.service';
 import { ReportsService } from './reports.service';
-import { ReportsController } from './reports.controller';
+import { ReportsResolver } from './reports.resolver';
 
 @Module({
   imports: [TypeOrmModule.forFeature([CallLog])],
-  providers: [EmailService, ReportsService],
-  controllers: [ReportsController],
+  providers: [EmailService, ReportsService, ReportsResolver],
 })
 export class ReportsModule {}

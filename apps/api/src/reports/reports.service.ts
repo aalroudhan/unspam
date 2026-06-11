@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { CallLog, CallOutcome } from '../calls/entities/call-log.entity';
 import { EmailService } from './email.service';
+import { CarrierReport } from './reports.types';
 
 interface CarrierEntry {
   name: string;
@@ -12,15 +13,6 @@ interface CarrierEntry {
   abuse_email: string;
   abuse_url: string;
   customer_service_phone: string | null;
-}
-
-export interface CarrierReport {
-  carrier: string;
-  abuseEmail: string | null;
-  abuseUrl: string | null;
-  numberCount: number;
-  numbers: string[];
-  unmatched: boolean;
 }
 
 @Injectable()

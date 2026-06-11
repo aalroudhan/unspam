@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { CallLog } from './entities/call-log.entity';
 import { CallsRepository } from './calls.repository';
-import { QueryCallsDto } from './dto/query-calls.dto';
+import { QueryCallsInput } from './dto/calls.types';
 
 @Injectable()
 export class CallsService {
   constructor(private readonly repo: CallsRepository) {}
 
-  async getCallLog(query: QueryCallsDto): Promise<{ data: CallLog[]; total: number }> {
+  async getCallLog(query: QueryCallsInput): Promise<{ data: CallLog[]; total: number }> {
     const [data, total] = await this.repo.findPaginated(query);
     return { data, total };
   }

@@ -1,6 +1,6 @@
 # Unspam
 
-A spam call detection system that scores incoming phone numbers using carrier data, spoofing signals, and community flags. Exposes a web UI and REST API. Runs entirely in Docker.
+A spam call detection system that scores incoming phone numbers using carrier data, spoofing signals, and community flags. Exposes a web UI and GraphQL API. Runs entirely in Docker.
 
 ## How It Works
 
@@ -45,12 +45,14 @@ Each incoming number passes through a chain of handlers. Each handler that fires
 
 | Layer | Technology |
 |---|---|
-| API | NestJS + TypeScript |
+| API | NestJS + TypeScript, GraphQL via Apollo Server |
 | Scorer | Python + FastAPI |
 | Database | PostgreSQL |
-| Web UI | HTML/CSS/JS served by nginx |
+| Web UI | HTML/CSS/JS served by nginx, talks to the API via GraphQL |
 | Carrier Lookup | Twilio Lookup v2 |
 | Infrastructure | Docker + Docker Compose |
+
+> An experimental Go + React rewrite (`apps/api-go`, `apps/web-react`) is also in the repo and runs side-by-side via `docker-compose.go.yml` — see [Go + React Rewrite](#go--react-rewrite-experimental).
 
 ## Project Structure
 
@@ -70,8 +72,11 @@ unspam/
 │   │       └── common/               # Global filter, interceptor, pipes
 │   ├── scorer/                       # Python FastAPI scoring service
 │   │   └── handlers/                 # Chain of Responsibility: VoIP → Blocklist → Carrier
-│   └── web/                          # Static web frontend
+│   ├── web/                          # Static web frontend (GraphQL via fetch)
+│   ├── api-go/                       # Experimental Go (Gin) rewrite of the API — GraphQL only
+│   └── web-react/                    # Experimental React (Vite) rewrite of the web UI — Apollo Client
 ├── docker-compose.yml
+├── docker-compose.go.yml             # Go + React stack (alternate ports, see below)
 ├── .env.example
 └── README.md
 ```
@@ -87,6 +92,29 @@ unspam/
 | Facade | `WebhookService` — single entry point over carrier lookup, scoring, interception, logging |
 | Observer | `EventEmitter2` decouples call interception from push notifications |
 | Chain of Responsibility | Python scorer: each rule is a handler that passes context down the chain |
+
+---
+
+## GraphQL API
+
+The API is GraphQL-only — there is a single `/graphql` endpoint instead of separate REST resource routes, and both web frontends (`apps/web` and `apps/web-react`) talk to it exclusively via GraphQL.
+
+| Backend | Endpoint | GraphiQL |
+|---|---|---|
+| NestJS (`apps/api`) | `POST http://localhost:3000/graphql` | enabled when `NODE_ENV` is not `production` |
+| Go (`apps/api-go`) | `POST http://localhost:3001/graphql` | always enabled |
+
+Open the endpoint URL in a browser to use GraphiQL and explore the schema interactively.
+
+Key operations:
+
+- `query callStats` / `query callLog(page, limit, outcome)` — dashboard stats and call history
+- `mutation flagNumber(callerNumber)` — community blocklist flagging (requires auth)
+- `query reports` / `mutation sendReport(carrier, testMode)` — carrier complaint reports (requires auth)
+- `mutation register(email, password)` / `mutation login(email, password)` / `query me` — auth, returns a JWT used as a `Bearer` token
+- `mutation checkNumber(callerNumber)` — score a number (used by Mode B / native interception)
+
+> **Note:** The Twilio voice webhook (`POST /webhook/call`) is the one exception to "everything is GraphQL" on both backends. Twilio POSTs form-encoded call data and requires a TwiML/XML response, which GraphQL can't represent — so this single route stays a plain REST endpoint on both `apps/api` and `apps/api-go`. Every other operation (calls, stats, flags, reports, auth, native number checks) goes through `/graphql`.
 
 ---
 
@@ -107,8 +135,7 @@ docker compose up --build
 | Service | URL |
 |---|---|
 | Web UI | http://localhost:8080 |
-| API | http://localhost:3000 |
-| API docs (Swagger) | http://localhost:3000/docs |
+| API / GraphiQL | http://localhost:3000/graphql |
 | Scorer | http://localhost:8000/docs |
 
 ---
@@ -220,6 +247,39 @@ docker compose up -d
 ```bash
 docker compose down
 ```
+
+---
+
+## Go + React Rewrite (Experimental)
+
+`apps/api-go` (Go + Gin + GraphQL) and `apps/web-react` (React + Vite + Apollo Client) are an in-progress rewrite of the API and web UI. They run side-by-side with the main stack, on different ports, via a separate compose file:
+
+```bash
+docker compose -f docker-compose.go.yml up --build -d
+```
+
+| Service | URL |
+|---|---|
+| Web UI | http://localhost:8081 |
+| API / GraphiQL | http://localhost:3001/graphql |
+| Postgres | localhost:5433 |
+| Scorer | http://localhost:8002/docs |
+
+It reads the same `.env` file as the main stack.
+
+### Building outside Docker
+
+- **`apps/api-go`** requires **Go 1.25+**. The `go.mod` `go` directive is `1.25` (pulled in by the `graphql-go`/`graphql-go-handler` dependency tree). With `GOTOOLCHAIN=auto` (the Go default), `go build ./...` downloads the matching toolchain automatically — no manual install needed.
+- **`apps/web-react`** is a standard Vite + React app:
+
+  ```bash
+  cd apps/web-react
+  npm install
+  npm run dev      # local dev server
+  npm run build    # production build
+  ```
+
+  Set `VITE_API_URL` (defaults to `/api`) if the GraphQL endpoint isn't reachable at the default proxy path.
 
 ---
 

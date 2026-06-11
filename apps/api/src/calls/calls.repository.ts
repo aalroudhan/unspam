@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { CallLog } from './entities/call-log.entity';
-import { QueryCallsDto } from './dto/query-calls.dto';
+import { QueryCallsInput } from './dto/calls.types';
 
 @Injectable()
 export class CallsRepository {
@@ -15,7 +15,7 @@ export class CallsRepository {
     return this.orm.save(this.orm.create(callLog));
   }
 
-  findPaginated(query: QueryCallsDto): Promise<[CallLog[], number]> {
+  findPaginated(query: QueryCallsInput): Promise<[CallLog[], number]> {
     const qb = this.orm.createQueryBuilder('call')
       .orderBy('call.createdAt', 'DESC')
       .skip(((query.page ?? 1) - 1) * (query.limit ?? 20))

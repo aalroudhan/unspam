@@ -1,0 +1,67 @@
+# Go + React rewrite stack. Runs alongside the original NestJS stack on
+# different ports/containers so the two can be compared.
+#   Web UI : http://localhost:8081
+#   API    : http://localhost:3001
+name: unspam-go
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: unspam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_go_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scorer:
+    build: ./apps/scorer
+    ports:
+      - '8002:8000'
+    healthcheck:
+      test: ['CMD', 'python', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8000/docs")']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build: ./apps/api-go
+    ports:
+      - '3001:3000'
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: unspam
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      SCORER_URL: http://scorer:8000
+      INTERCEPTION_MODE: ${INTERCEPTION_MODE:-native}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      FORWARD_TO_NUMBER: ${FORWARD_TO_NUMBER:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      scorer:
+        condition: service_healthy
+
+  web:
+    build: ./apps/web-react
+    ports:
+      - '8081:80'
+    depends_on:
+      - api
+
+volumes:
+  postgres_go_data:

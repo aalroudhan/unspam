@@ -458,6 +458,72 @@
     .btn-report:disabled { cursor: not-allowed; }
     .btn-report.no-contact { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
+    /* ── Auth modal ─────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px); z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 18px; padding: 2rem; width: 100%; max-width: 380px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: fadeUp 0.25s ease;
+    }
+    .modal-logo { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .modal-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+    .modal-sub { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+    .modal-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    .modal-tab {
+      flex: 1; padding: 0.6rem 0; background: none; border: none;
+      font-size: 0.85rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .modal-tab.active { color: var(--text); border-bottom-color: var(--red); }
+    .field-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.35rem; display: block; }
+    .field-input {
+      width: 100%; padding: 0.7rem 0.875rem; border-radius: 9px;
+      border: 1px solid var(--border2); background: var(--bg);
+      color: var(--text); font-size: 0.9rem; font-family: inherit;
+      outline: none; transition: border-color 0.15s; margin-bottom: 0.75rem;
+    }
+    .field-input:focus { border-color: var(--subtle); }
+    .auth-error { font-size: 0.76rem; color: #f87171; margin-bottom: 0.75rem; display: none; }
+    .btn-auth {
+      width: 100%; padding: 0.8rem; border-radius: 10px; border: none;
+      background: var(--red); color: #fff; font-size: 0.9rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-auth:hover { background: #c1121f; }
+    .btn-auth:disabled { background: var(--border2); color: var(--muted); cursor: not-allowed; }
+
+    /* User pill in header */
+    .user-pill {
+      display: none; align-items: center; gap: 0.5rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .user-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--red-bg); border: 1px solid rgba(230,57,70,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; color: var(--red);
+    }
+    .btn-signout {
+      background: none; border: 1px solid var(--border2); border-radius: 6px;
+      color: var(--muted); font-size: 0.7rem; font-family: inherit;
+      padding: 0.2rem 0.5rem; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-signout:hover { color: var(--text); border-color: var(--subtle); }
+    .btn-signin {
+      background: var(--red); color: #fff; border: none; border-radius: 8px;
+      padding: 0.35rem 0.875rem; font-size: 0.78rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-signin:hover { background: #c1121f; }
+
     /* ── Toast ───────────────────────────────────────────────────────────── */
     #toast-container {
       position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
@@ -493,6 +559,29 @@
 </head>
 <body>
 
+  <!-- Auth modal -->
+  <div class="modal-overlay hidden" id="auth-modal">
+    <div class="modal">
+      <div class="modal-logo">
+        <div class="logo-mark">🛡</div>
+        <div>
+          <div class="modal-title">Unspam</div>
+          <div class="modal-sub">Sign in to flag numbers and send carrier complaints</div>
+        </div>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="mtab-login"    onclick="switchAuthTab('login')">Sign in</button>
+        <button class="modal-tab"        id="mtab-register" onclick="switchAuthTab('register')">Create account</button>
+      </div>
+      <div id="auth-error" class="auth-error"></div>
+      <label class="field-label" for="auth-email">Email</label>
+      <input class="field-input" id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <label class="field-label" for="auth-password">Password</label>
+      <input class="field-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button class="btn-auth" id="auth-submit" onclick="submitAuth()">Sign in</button>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div id="toast-container"></div>
 
@@ -518,6 +607,12 @@
     </div>
     <div class="header-right">
       <span class="mode-pill" id="mode-indicator">Mode A</span>
+      <div class="user-pill" id="user-pill">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="user-email-display"></span>
+        <button class="btn-signout" onclick="signOut()">Sign out</button>
+      </div>
+      <button class="btn-signin" id="signin-btn" onclick="openAuthModal()">Sign in</button>
     </div>
   </header>
 
@@ -653,6 +748,32 @@
     const API = 'http://localhost:3000';
     const CIRC = 339.3; // 2π × 54
 
+    // ── GraphQL transport ────────────────────────────────────────────────────
+    // The backend exposes a single GraphQL endpoint. authHeaders() (defined
+    // later, hoisted) injects the Bearer token when signed in.
+    async function gqlRequest(query, variables = {}) {
+      const res = await fetch(`${API}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ query, variables }),
+      });
+      const body = await res.json().catch(() => ({ errors: [{ message: 'Request failed' }] }));
+      if (body.errors && body.errors.length) throw new Error(body.errors[0].message);
+      return body.data;
+    }
+
+    const GQL = {
+      check: `mutation($n:String!){checkNumber(callerNumber:$n){outcome score reasons communityFlags twiml carrier{isVoip isNonFixedVoip isSpoofed carrierType carrierName}}}`,
+      stats: `{callStats{total blocked today blockedRate dailyStats{date total blocked}}}`,
+      calls: `query($limit:Int){callLog(limit:$limit){data{id callerNumber spamScore outcome mode carrierType carrierName isVoip isSpoofed createdAt} total}}`,
+      flag:  `mutation($n:String!){flagNumber(number:$n)}`,
+      reports: `{reports{carrier abuseEmail abuseUrl numberCount numbers unmatched}}`,
+      send:  `mutation($carrier:String!,$testMode:Boolean){sendReport(carrier:$carrier,testMode:$testMode){sent}}`,
+      register: `mutation($email:String!,$password:String!){register(email:$email,password:$password){token}}`,
+      login: `mutation($email:String!,$password:String!){login(email:$email,password:$password){token}}`,
+      me:    `{me{id email createdAt}}`,
+    };
+
     const HANDLERS = [
       { key: 'non_fixed_voip',   name: 'Non-Fixed VoIP',     desc: 'Disposable VoIP with no physical address (TextNow, Google Voice). Highest risk.', contrib: '+40%' },
       { key: 'fixed_voip',       name: 'Fixed VoIP',         desc: 'VoIP registered to a physical address (Vonage, magicJack). Lower risk.',            contrib: '+20%' },
@@ -692,12 +813,7 @@
       const btn = document.getElementById('check-btn');
       btn.disabled = true; btn.textContent = 'Checking…';
       try {
-        const res = await fetch(`${API}/webhook/check`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callerNumber: phone }),
-        });
-        const data = await res.json();
+        const data = (await gqlRequest(GQL.check, { n: phone })).checkNumber;
         renderDecision(data, { enableFlag: !afterFlag });
         loadLog();
         loadStats();
@@ -732,12 +848,7 @@
         fill.style.width = `${Math.round((i / numbers.length) * 100)}%`;
         label.textContent = `${i} of ${numbers.length}`;
         try {
-          const res = await fetch(`${API}/webhook/check`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callerNumber: numbers[i] }),
-          });
-          const d = await res.json();
+          const d = (await gqlRequest(GQL.check, { n: numbers[i] })).checkNumber;
           const pct = Math.round((d.score ?? 0) * 100);
           const barClass = pct < 40 ? 'low' : pct < 60 ? 'mid' : 'high';
           const row = document.createElement('tr');
@@ -836,7 +947,7 @@
     // ── Stats + trend ───────────────────────────────────────────────────────
     async function loadStats() {
       try {
-        const s = await fetch(`${API}/calls/stats`).then(r => r.json());
+        const s = (await gqlRequest(GQL.stats)).callStats;
 
         // Header stats
         animateCount('hs-total',   s.total);
@@ -922,8 +1033,7 @@
     // ── Log ────────────────────────────────────────────────────────────────
     async function loadLog() {
       try {
-        const res = await fetch(`${API}/calls?limit=20`);
-        const { data } = await res.json();
+        const { data } = (await gqlRequest(GQL.calls, { limit: 20 })).callLog;
         allLogs = data || [];
         renderLog();
       } catch {}
@@ -1029,7 +1139,7 @@
       if (!phone) return;
       document.getElementById('flag-btn').disabled = true;
       try {
-        await fetch(`${API}/calls/${encodeURIComponent(phone)}/flag`, { method: 'POST' });
+        await gqlRequest(GQL.flag, { n: phone });
         document.getElementById('flag-confirm').style.display = 'block';
         toast('Number flagged as spam', 'success');
         setTimeout(() => { document.getElementById('flag-confirm').style.display = 'none'; }, 2500);
@@ -1044,7 +1154,7 @@
       const el = document.getElementById('report-list');
       el.innerHTML = '<p class="empty">Loading…</p>';
       try {
-        const reports = await fetch(`${API}/reports`).then(r => r.json());
+        const reports = (await gqlRequest(GQL.reports)).reports;
         if (!reports.length) { el.innerHTML = '<p class="empty">No intercepted calls yet.</p>'; return; }
         el.innerHTML = reports.map(r => `
           <div class="report-row">
@@ -1068,12 +1178,7 @@
       btn.disabled = true; btn.textContent = 'Sending…';
       const testMode = document.getElementById('test-mode').checked;
       try {
-        const res = await fetch(`${API}/reports/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ carrier, testMode }),
-        });
-        if (!res.ok) throw new Error();
+        await gqlRequest(GQL.send, { carrier, testMode });
         btn.textContent = 'Sent ✓'; btn.style.color = '#4ade80'; btn.style.borderColor = '#14532d';
         toast(`Complaint sent for ${carrier}`, 'success');
       } catch {
@@ -1082,11 +1187,127 @@
       }
     }
 
+    // ── Auth ───────────────────────────────────────────────────────────────
+    let authToken = localStorage.getItem('unspam_token') || null;
+    let authMode  = 'login';
+
+    function authHeaders() {
+      return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    }
+
+    function openAuthModal() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+      document.getElementById('auth-email').focus();
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+      document.getElementById('auth-error').style.display = 'none';
+      document.getElementById('auth-email').value = '';
+      document.getElementById('auth-password').value = '';
+    }
+
+    function switchAuthTab(mode) {
+      authMode = mode;
+      document.getElementById('mtab-login').classList.toggle('active', mode === 'login');
+      document.getElementById('mtab-register').classList.toggle('active', mode === 'register');
+      document.getElementById('auth-submit').textContent = mode === 'login' ? 'Sign in' : 'Create account';
+      document.getElementById('auth-error').style.display = 'none';
+      document.getElementById('auth-password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+    }
+
+    async function submitAuth() {
+      const email    = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const errEl    = document.getElementById('auth-error');
+      const btn      = document.getElementById('auth-submit');
+
+      if (!email || !password) { showAuthError('Email and password are required'); return; }
+
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        const data = await gqlRequest(authMode === 'login' ? GQL.login : GQL.register, { email, password });
+        authToken = (authMode === 'login' ? data.login : data.register).token;
+        localStorage.setItem('unspam_token', authToken);
+        closeAuthModal();
+        updateAuthUI(email);
+        toast(authMode === 'login' ? 'Signed in' : 'Account created', 'success');
+      } catch (e) {
+        showAuthError(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = authMode === 'login' ? 'Sign in' : 'Create account';
+      }
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function signOut() {
+      authToken = null;
+      localStorage.removeItem('unspam_token');
+      updateAuthUI(null);
+      toast('Signed out', 'info');
+    }
+
+    function updateAuthUI(email) {
+      const pill    = document.getElementById('user-pill');
+      const signinBtn = document.getElementById('signin-btn');
+      if (email) {
+        document.getElementById('user-avatar').textContent = email[0].toUpperCase();
+        document.getElementById('user-email-display').textContent = email;
+        pill.style.display = 'flex';
+        signinBtn.style.display = 'none';
+      } else {
+        pill.style.display = 'none';
+        signinBtn.style.display = '';
+      }
+    }
+
+    async function checkAuthToken() {
+      if (!authToken) return;
+      try {
+        const { me } = await gqlRequest(GQL.me);
+        updateAuthUI(me.email);
+      } catch {
+        authToken = null;
+        localStorage.removeItem('unspam_token');
+      }
+    }
+
+    // Close modal on overlay click
+    document.getElementById('auth-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeAuthModal();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeAuthModal();
+    });
+    document.getElementById('auth-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitAuth();
+    });
+
+    // Wrap flag and sendReport to require auth
+    const _flagNumber = flagNumber;
+    flagNumber = async function() {
+      if (!authToken) { openAuthModal(); return; }
+      return _flagNumber();
+    };
+    const _sendReport = sendReport;
+    sendReport = async function(carrier, btn) {
+      if (!authToken) { openAuthModal(); return; }
+      return _sendReport(carrier, btn);
+    };
+
     // ── Init ───────────────────────────────────────────────────────────────
     document.getElementById('phone').addEventListener('keydown', e => {
       if (e.key === 'Enter') checkNumber();
     });
 
+    checkAuthToken();
     loadLog();
     loadStats();
   </script>
